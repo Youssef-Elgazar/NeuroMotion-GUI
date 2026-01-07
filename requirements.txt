@@ -1,0 +1,7 @@
+Flask=
+pyserial
+Werkzeug
+MarkupSafe
+Jinja2
+itsdangerous
+click

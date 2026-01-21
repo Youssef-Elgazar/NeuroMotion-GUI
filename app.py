@@ -9,6 +9,7 @@ import threading
 import time
 import serial
 import json
+import os
 
 app = Flask(__name__)
 
@@ -48,11 +49,19 @@ ROBOT_COMMANDS = {
     'FRONT_LIFT_ATTACK': 21
 }
 
-# Serial port configuration
-SERIAL_PORT = '/dev/ttyS1'
+# Serial port configuration (override with SERIAL_PORT env if needed)
+SERIAL_PORT = os.getenv('SERIAL_PORT', '/dev/ttyS1')
 BAUD_RATE = 4800
 serial_connection = None
 serial_lock = threading.Lock()
+
+
+def ensure_serial_open():
+    """Make sure the serial port is open; attempt to re-init if not."""
+    global serial_connection
+    if serial_connection and serial_connection.is_open:
+        return True
+    return init_serial()
 
 def init_serial():
     """Initialize serial connection to robot"""
@@ -76,17 +85,23 @@ def send_command(command_code):
     """Send command byte to robot via serial"""
     global serial_connection
     with serial_lock:
+        if not ensure_serial_open():
+            print("Serial connection not open")
+            return False
         try:
-            if serial_connection and serial_connection.is_open:
-                serial_connection.write(bytes([command_code]))
-                print("Sent command code: {}".format(command_code))
-                return True
-            else:
-                print("Serial connection not open")
-                return False
+            serial_connection.write(bytes([command_code]))
+            serial_connection.flush()
+            print("Sent command code: {}".format(command_code))
+            return True
         except Exception as e:
             print("Error sending command: {}".format(e))
             return False
+
+
+@app.before_first_request
+def setup_serial():
+    """Initialize serial port on first request (covers flask run)."""
+    ensure_serial_open()
 
 @app.route('/')
 def index():

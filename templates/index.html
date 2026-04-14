@@ -96,6 +96,141 @@
             box-shadow: 0 10px 30px rgba(0,0,0,0.2);
         }
 
+        .layout-grid {
+            display: grid;
+            grid-template-columns: 1.15fr 1fr;
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+
+        .demo-panel {
+            background: white;
+            padding: 24px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .demo-badge {
+            display: inline-block;
+            background: #f59e0b;
+            color: #111827;
+            font-weight: 700;
+            font-size: 0.8em;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            padding: 6px 10px;
+            border-radius: 999px;
+            margin-bottom: 12px;
+        }
+
+        .demo-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+
+        .demo-btn {
+            border: none;
+            border-radius: 8px;
+            padding: 10px 14px;
+            cursor: pointer;
+            color: white;
+            font-weight: 600;
+            background: #0ea5e9;
+        }
+
+        .demo-btn.stop {
+            background: #ef4444;
+        }
+
+        .demo-btn.alt {
+            background: #334155;
+        }
+
+        .demo-stats {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+
+        .stat-card {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 10px;
+        }
+
+        .stat-label {
+            color: #64748b;
+            font-size: 0.8em;
+            margin-bottom: 4px;
+        }
+
+        .stat-value {
+            color: #0f172a;
+            font-size: 1.1em;
+            font-weight: 700;
+        }
+
+        .channel-grid {
+            display: grid;
+            grid-template-columns: repeat(7, minmax(0, 1fr));
+            gap: 8px;
+        }
+
+        .channel-cell {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 8px;
+            text-align: center;
+        }
+
+        .channel-name {
+            color: #64748b;
+            font-size: 0.75em;
+            margin-bottom: 3px;
+        }
+
+        .channel-value {
+            color: #111827;
+            font-size: 0.92em;
+            font-weight: 700;
+        }
+
+        .prediction-banner {
+            background: linear-gradient(120deg, #0ea5e9, #2563eb);
+            border-radius: 12px;
+            padding: 14px;
+            color: white;
+            margin-bottom: 14px;
+        }
+
+        .prediction-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .prediction-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .prediction-value {
+            font-size: 1.12em;
+            font-weight: 700;
+        }
+
+        .stream-note {
+            color: #475569;
+            font-size: 0.9em;
+            margin-bottom: 10px;
+        }
+
         .section-title {
             font-size: 1.5em;
             color: #333;
@@ -193,6 +328,18 @@
                 font-size: 1.8em;
             }
 
+            .layout-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .demo-stats {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .channel-grid {
+                grid-template-columns: repeat(4, minmax(0, 1fr));
+            }
+
             .command-grid {
                 grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
             }
@@ -224,71 +371,142 @@
             </div>
         </div>
 
-        <div class="control-panel">
-            <h2 class="section-title">Quick Actions</h2>
-            <div class="quick-actions">
-                <button class="quick-btn" onclick="sendCommand('ATTENTION_1')">🎯 Attention</button>
-                <button class="quick-btn" onclick="sendCommand('BOW')">🙇 Bow</button>
-                <button class="quick-btn" onclick="sendCommand('CEREMONY')">🎉 Ceremony</button>
-                <button class="quick-btn danger" onclick="sendCommand('SIT_DOWN')">💺 Sit Down</button>
+        <div class="layout-grid">
+            <div class="demo-panel">
+                <div class="demo-badge">Simulated EEG Input</div>
+                <h2 class="section-title">Prediction Model Demo</h2>
+                <p class="stream-note">Placeholder 14-channel stream with delayed command transitions and mock model confidence.</p>
+
+                <div class="demo-controls">
+                    <button class="demo-btn" onclick="startDemo()">Start Stream</button>
+                    <button class="demo-btn stop" onclick="stopDemo()">Stop Stream</button>
+                    <button class="demo-btn alt" onclick="triggerTransition()">Next Command Transition</button>
+                    <button class="demo-btn alt" onclick="toggleBridge()" id="bridge-btn">Enable Robot Bridge</button>
+                </div>
+
+                <div class="prediction-banner">
+                    <div class="prediction-row">
+                        <span>Ground Truth</span>
+                        <span id="ground-truth" class="prediction-value">-</span>
+                    </div>
+                    <div class="prediction-row">
+                        <span>Predicted Command</span>
+                        <span id="predicted-command" class="prediction-value">-</span>
+                    </div>
+                    <div class="prediction-row">
+                        <span>Confidence</span>
+                        <span id="prediction-confidence" class="prediction-value">0%</span>
+                    </div>
+                </div>
+
+                <div class="demo-stats">
+                    <div class="stat-card">
+                        <div class="stat-label">Stream Status</div>
+                        <div class="stat-value" id="stream-status">Stopped</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Cumulative Accuracy</div>
+                        <div class="stat-value" id="accuracy">0%</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Packet ID</div>
+                        <div class="stat-value" id="packet-id">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Transition</div>
+                        <div class="stat-value" id="transition-status">Stable</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Streak</div>
+                        <div class="stat-value" id="streak">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Dispatch</div>
+                        <div class="stat-value" id="dispatch-status">Bridge disabled</div>
+                    </div>
+                </div>
+
+                <div class="channel-grid" id="channel-grid"></div>
             </div>
 
-            <div class="category">
-                <h3 class="category-name">🚶 Movement</h3>
-                <div class="command-grid">
-                    <button class="command-btn" onclick="sendCommand('FWD_SHORT_STEP')">Forward Step</button>
-                    <button class="command-btn" onclick="sendCommand('BWD_SHORT_STEP')">Backward Step</button>
-                    <!-- <button class="command-btn" onclick="sendCommand('FWD_RUN')">Forward Run</button>
-                    <button class="command-btn" onclick="sendCommand('BWD_RUN')">Backward Run</button>
-                    <button class="command-btn" onclick="sendCommand('LEFT_TURN')">Turn Left</button> -->
-                    <button class="command-btn" onclick="sendCommand('RIGHT_TURN')">Turn Right</button>
-                    <button class="command-btn" onclick="sendCommand('GO_LEFT')">Go Left</button>
-                    <button class="command-btn" onclick="sendCommand('GO_RIGHT')">Go Right</button>
-                    <!-- <button class="command-btn" onclick="sendCommand('MARK_TIME')">Mark Time</button> -->
+            <div class="control-panel">
+                <h2 class="section-title">Quick Actions</h2>
+                <div class="quick-actions">
+                    <button class="quick-btn" onclick="sendCommand('ATTENTION_1')">🎯 Attention</button>
+                    <button class="quick-btn" onclick="sendCommand('BOW')">🙇 Bow</button>
+                    <button class="quick-btn" onclick="sendCommand('CEREMONY')">🎉 Ceremony</button>
+                    <button class="quick-btn danger" onclick="sendCommand('SIT_DOWN')">💺 Sit Down</button>
                 </div>
-            </div>
 
-            <!-- <div class="category">
-                <h3 class="category-name">👊 Attack Moves</h3>
-                <div class="command-grid">
-                    <button class="command-btn" onclick="sendCommand('RIGHT_SHOOTING')">Right Shooting</button>
-                    <button class="command-btn" onclick="sendCommand('LEFT_SHOOTING')">Left Shooting</button>
-                    <button class="command-btn" onclick="sendCommand('LEFT_FRONT_SIDE_ATTACK')">Left Front Attack</button>
-                    <button class="command-btn" onclick="sendCommand('RIGHT_FRONT_SIDE_ATTACK')">Right Front Attack</button>
-                    <button class="command-btn" onclick="sendCommand('LEFT_SIDE_ATTACK')">Left Side Attack</button>
-                    <button class="command-btn" onclick="sendCommand('RIGHT_SIDE_ATTACK')">Right Side Attack</button>
-                    <button class="command-btn" onclick="sendCommand('LEFT_BACK_ATTACK')">Left Back Attack</button>
-                    <button class="command-btn" onclick="sendCommand('RIGHT_BACK_ATTACK')">Right Back Attack</button>
-                    <button class="command-btn" onclick="sendCommand('BACK_LIFT_ATTACK')">Back Lift Attack</button>
-                    <button class="command-btn" onclick="sendCommand('FRONT_LIFT_ATTACK')">Front Lift Attack</button>
-                    <button class="command-btn" onclick="sendCommand('FRONT_BOTH_SIDE_PUNCH')">Both Side Punch</button>
-                </div>
-            </div>
+                <div class="category">
+                    <h3 class="category-name">🚶 Movement</h3>
+                    <div class="command-grid">
 
-            <div class="category">
-                <h3 class="category-name">🤸 Acrobatics</h3>
-                <div class="command-grid">
-                    <button class="command-btn" onclick="sendCommand('TUMBLING_FORWARD')">Tumbling Forward</button>
-                    <button class="command-btn" onclick="sendCommand('TUMBLING_BACKWARD')">Tumbling Backward</button>
-                    <button class="command-btn" onclick="sendCommand('FLAPPING_AND_STANDUP')">Flapping & Stand</button>
+                        <button class="command-btn" onclick="sendCommand('BWD_SHORT_STEP')">Backward Step</button>
+                        <!-- <button class="command-btn" onclick="sendCommand('FWD_RUN')">Forward Run</button>
+                        <button class="command-btn" onclick="sendCommand('BWD_RUN')">Backward Run</button>
+                        <button class="command-btn" onclick="sendCommand('LEFT_TURN')">Turn Left</button> -->
+                        <button class="command-btn" onclick="sendCommand('RIGHT_TURN')">Turn Right</button>
+                        <button class="command-btn" onclick="sendCommand('GO_LEFT')">Go Left</button>
+                        <button class="command-btn" onclick="sendCommand('GO_RIGHT')">Go Right</button>
+                        <!-- <button class="command-btn" onclick="sendCommand('MARK_TIME')">Mark Time</button> -->
+                    </div>
                 </div>
-            </div>
 
-            <div class="category">
-                <h3 class="category-name">🎭 Expressions</h3>
-                <div class="command-grid">
-                    <button class="command-btn" onclick="sendCommand('HEAD_LEFT')">Head Left</button>
-                    <button class="command-btn" onclick="sendCommand('HEAD_RIGHT')">Head Right</button>
-                    <button class="command-btn" onclick="sendCommand('LOSER1')">Loser 1</button>
-                    <button class="command-btn" onclick="sendCommand('LOSER2')">Loser 2</button>
-                    <button class="command-btn" onclick="sendCommand('MOTION_CAPTURE')">Motion Capture</button>
+                <!-- <div class="category">
+                    <h3 class="category-name">👊 Attack Moves</h3>
+                    <div class="command-grid">
+                        <button class="command-btn" onclick="sendCommand('RIGHT_SHOOTING')">Right Shooting</button>
+                        <button class="command-btn" onclick="sendCommand('LEFT_SHOOTING')">Left Shooting</button>
+                        <button class="command-btn" onclick="sendCommand('LEFT_FRONT_SIDE_ATTACK')">Left Front Attack</button>
+                        <button class="command-btn" onclick="sendCommand('RIGHT_FRONT_SIDE_ATTACK')">Right Front Attack</button>
+                        <button class="command-btn" onclick="sendCommand('LEFT_SIDE_ATTACK')">Left Side Attack</button>
+                        <button class="command-btn" onclick="sendCommand('RIGHT_SIDE_ATTACK')">Right Side Attack</button>
+                        <button class="command-btn" onclick="sendCommand('LEFT_BACK_ATTACK')">Left Back Attack</button>
+                        <button class="command-btn" onclick="sendCommand('RIGHT_BACK_ATTACK')">Right Back Attack</button>
+                        <button class="command-btn" onclick="sendCommand('BACK_LIFT_ATTACK')">Back Lift Attack</button>
+                        <button class="command-btn" onclick="sendCommand('FRONT_LIFT_ATTACK')">Front Lift Attack</button>
+                        <button class="command-btn" onclick="sendCommand('FRONT_BOTH_SIDE_PUNCH')">Both Side Punch</button>
+                    </div>
                 </div>
-            </div> -->
+
+                <div class="category">
+                    <h3 class="category-name">🤸 Acrobatics</h3>
+                    <div class="command-grid">
+                        <button class="command-btn" onclick="sendCommand('TUMBLING_FORWARD')">Tumbling Forward</button>
+                        <button class="command-btn" onclick="sendCommand('TUMBLING_BACKWARD')">Tumbling Backward</button>
+                        <button class="command-btn" onclick="sendCommand('FLAPPING_AND_STANDUP')">Flapping & Stand</button>
+                    </div>
+                </div>
+
+                <div class="category">
+                    <h3 class="category-name">🎭 Expressions</h3>
+                    <div class="command-grid">
+                        <button class="command-btn" onclick="sendCommand('HEAD_LEFT')">Head Left</button>
+                        <button class="command-btn" onclick="sendCommand('HEAD_RIGHT')">Head Right</button>
+                        <button class="command-btn" onclick="sendCommand('LOSER1')">Loser 1</button>
+                        <button class="command-btn" onclick="sendCommand('LOSER2')">Loser 2</button>
+                        <button class="command-btn" onclick="sendCommand('MOTION_CAPTURE')">Motion Capture</button>
+                    </div>
+                </div> -->
+            </div>
         </div>
     </div>
 
     <script>
         let commandInProgress = false;
+        let demoState = null;
+        let demoPollTimer = null;
+
+        function sendJson(url, payload) {
+            return fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(payload || {})
+            }).then(response => response.json());
+        }
 
         function updateStatus(message, type) {
             const statusEl = document.getElementById('status-message');
@@ -330,6 +548,97 @@
             });
         }
 
+        function renderChannels(channels, packet) {
+            const grid = document.getElementById('channel-grid');
+            if (!channels || !packet || channels.length !== packet.length) {
+                grid.innerHTML = '';
+                return;
+            }
+
+            let html = '';
+            for (let i = 0; i < channels.length; i++) {
+                html += '<div class="channel-cell">'
+                    + '<div class="channel-name">' + channels[i] + '</div>'
+                    + '<div class="channel-value">' + Number(packet[i]).toFixed(3) + '</div>'
+                    + '</div>';
+            }
+            grid.innerHTML = html;
+        }
+
+        function renderDemoState(state) {
+            demoState = state;
+            document.getElementById('stream-status').textContent = state.running ? 'Running' : 'Stopped';
+            document.getElementById('packet-id').textContent = state.packet_id;
+            document.getElementById('accuracy').textContent = Number(state.accuracy).toFixed(2) + '%';
+            document.getElementById('ground-truth').textContent = state.ground_truth || '-';
+            document.getElementById('predicted-command').textContent = state.predicted_label || '-';
+            document.getElementById('prediction-confidence').textContent = Number(state.confidence || 0).toFixed(1) + '%';
+            document.getElementById('streak').textContent = state.streak + '/' + state.required_streak;
+            document.getElementById('transition-status').textContent = state.pending_label ? ('Switching to ' + state.pending_label) : 'Stable';
+
+            const dispatch = state.last_dispatch || {};
+            document.getElementById('dispatch-status').textContent = dispatch.message || 'No dispatch info';
+
+            const bridgeBtn = document.getElementById('bridge-btn');
+            bridgeBtn.textContent = state.robot_bridge_enabled ? 'Disable Robot Bridge' : 'Enable Robot Bridge';
+
+            renderChannels(state.channels, state.packet);
+        }
+
+        function fetchDemoState() {
+            return fetch('/api/demo/state')
+                .then(response => response.json())
+                .then(renderDemoState)
+                .catch(() => {
+                    updateStatus('Could not fetch demo state', 'error');
+                });
+        }
+
+        function ensureDemoPolling() {
+            if (demoPollTimer) {
+                return;
+            }
+            demoPollTimer = setInterval(fetchDemoState, 250);
+        }
+
+        function startDemo() {
+            sendJson('/api/demo/start', {})
+                .then(data => {
+                    updateStatus(data.message, data.success ? 'success' : 'error');
+                    ensureDemoPolling();
+                    return fetchDemoState();
+                })
+                .catch(error => updateStatus('Start failed: ' + error.message, 'error'));
+        }
+
+        function stopDemo() {
+            sendJson('/api/demo/stop', {})
+                .then(data => {
+                    updateStatus(data.message, data.success ? 'success' : 'error');
+                    return fetchDemoState();
+                })
+                .catch(error => updateStatus('Stop failed: ' + error.message, 'error'));
+        }
+
+        function triggerTransition() {
+            sendJson('/api/demo/transition', {})
+                .then(data => {
+                    updateStatus(data.message, data.success ? 'success' : 'error');
+                    return fetchDemoState();
+                })
+                .catch(error => updateStatus('Transition failed: ' + error.message, 'error'));
+        }
+
+        function toggleBridge() {
+            const enabled = !(demoState && demoState.robot_bridge_enabled);
+            sendJson('/api/demo/robot_bridge', { enabled: enabled })
+                .then(data => {
+                    updateStatus(data.message, data.success ? 'success' : 'error');
+                    return fetchDemoState();
+                })
+                .catch(error => updateStatus('Bridge toggle failed: ' + error.message, 'error'));
+        }
+
         // Keyboard shortcuts
         document.addEventListener('keydown', function(e) {
             if (e.target.tagName === 'INPUT') return;
@@ -364,6 +673,9 @@
                 .catch(error => {
                     updateStatus('Error checking status', 'error');
                 });
+
+            ensureDemoPolling();
+            fetchDemoState();
         });
     </script>
 </body>

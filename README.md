@@ -1,5 +1,40 @@
 # Robot Control Web Interface - Setup Guide (Python 3.6)
 
+## EEG Demo Mode (Simulated Input)
+
+The interface now includes a separated **Prediction Model Demo** panel that simulates real-time EEG packets without a headset.
+
+### What it does
+
+- Streams placeholder 14-channel EEG packets.
+- Simulates delayed transitions between mental commands.
+- Shows live packet values, ground-truth label, predicted label, confidence, and cumulative accuracy.
+- Uses stability gating before dispatching predicted commands to the robot.
+
+### Demo controls in the page
+
+- **Start Stream**: starts the EEG simulation.
+- **Stop Stream**: stops simulation.
+- **Next Command Transition**: schedules a delayed switch to another command.
+- **Enable Robot Bridge**: allows stable predicted outputs to trigger robot commands.
+
+### Optional environment variables
+
+- `DEMO_PACKET_INTERVAL_SEC` (default `0.25`)
+- `DEMO_SWITCH_DELAY_SEC` (default `2.0`)
+- `DEMO_AUTO_SWITCH_EVERY_SEC` (default `6.0`)
+- `DEMO_CONFIDENCE_THRESHOLD` (default `80.0`)
+- `DEMO_STREAK_REQUIRED` (default `3`)
+- `DEMO_BRIDGE_SEND_REAL` (default `0`, set `1` to forward stable predictions to robot serial)
+
+### API endpoints added
+
+- `GET /api/demo/state`
+- `POST /api/demo/start`
+- `POST /api/demo/stop`
+- `POST /api/demo/transition`
+- `POST /api/demo/robot_bridge`
+
 ## Files Structure
 
 Create the following directory structure:
@@ -101,6 +136,7 @@ Access from network at: http://192.168.1.100:5000
 ## Features
 
 ### Web Interface
+
 - ✅ Beautiful, modern UI with gradient design
 - ✅ Organized by command categories
 - ✅ Quick action buttons for common commands
@@ -110,6 +146,7 @@ Access from network at: http://192.168.1.100:5000
 - ✅ Works with Python 3.6+ (no SocketIO needed)
 
 ### Keyboard Shortcuts
+
 - `W` - Forward Step
 - `S` - Backward Step
 - `A` - Turn Left
@@ -119,6 +156,7 @@ Access from network at: http://192.168.1.100:5000
 - `Space` - Attention
 
 ### Command Categories
+
 1. **Movement** - Walking, running, turning
 2. **Attack Moves** - Various punches and kicks
 3. **Acrobatics** - Tumbling, flips
@@ -162,6 +200,7 @@ sudo kill -9 <PID>
 ### Cannot Access from Other Devices
 
 1. Find your actual IP address:
+
    ```bash
    ip addr show
    # or
@@ -171,10 +210,11 @@ sudo kill -9 <PID>
 2. Ensure devices are on same network
 
 3. Check firewall:
+
    ```bash
    # Allow port 5000 (Ubuntu/Debian)
    sudo ufw allow 5000
-   
+
    # Or temporarily disable
    sudo ufw disable
    ```
@@ -222,6 +262,7 @@ sudo systemctl status robot-control
 ```
 
 View logs:
+
 ```bash
 sudo journalctl -u robot-control -f
 ```
@@ -244,6 +285,7 @@ The interface will still work and show command feedback.
 ⚠️ **Important:** This interface has no authentication. Only use on trusted networks!
 
 For production use, consider adding:
+
 - User authentication (Flask-Login)
 - HTTPS/SSL
 - Rate limiting
@@ -268,12 +310,15 @@ curl -X POST http://localhost:5000/api/send_command \
 ## Common Issues on Odroid
 
 ### 1. Serial Port Name
+
 Odroid might use different serial port names:
+
 - `/dev/ttyS1` (most common)
 - `/dev/ttySAC1` (Samsung SoC)
 - Check with: `ls /dev/tty*`
 
 ### 2. Permission Denied
+
 ```bash
 sudo chmod 666 /dev/ttyS1
 # Or add to dialout group permanently:
@@ -281,7 +326,9 @@ sudo usermod -a -G dialout odroid
 ```
 
 ### 3. Port 5000 Already Used
+
 Change port in app.py:
+
 ```python
 app.run(host='0.0.0.0', port=8080, debug=False, threaded=True)
 ```

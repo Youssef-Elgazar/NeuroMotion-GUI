@@ -10,6 +10,7 @@ import time
 import serial
 import json
 import os
+from demo_mode import EEGDemoEngine
 
 app = Flask(__name__)
 
@@ -50,10 +51,61 @@ ROBOT_COMMANDS = {
 }
 
 # Serial port configuration (override with SERIAL_PORT env if needed)
-SERIAL_PORT = os.getenv('SERIAL_PORT', '/dev/ttyS1')
+DEFAULT_PORT_CANDIDATES = (
+    ['COM3', 'COM4'] if os.name == 'nt'
+    else ['/dev/ttyUSB0', '/dev/ttyUSB1', '/dev/ttyACM0', '/dev/ttyS1']
+)
+
+
+def choose_serial_port():
+    """Pick serial port from env or first existing candidate."""
+    env_port = os.getenv('SERIAL_PORT')
+    if env_port:
+        return env_port
+    for candidate in DEFAULT_PORT_CANDIDATES:
+        if os.path.exists(candidate):
+            return candidate
+    return DEFAULT_PORT_CANDIDATES[0]
+
+
+SERIAL_PORT = choose_serial_port()
 BAUD_RATE = 4800
+ROBOT_BUSY_SEC = float(os.getenv('ROBOT_BUSY_SEC', '1.5'))
 serial_connection = None
 serial_lock = threading.Lock()
+last_error_message = None
+last_command = None
+last_send_time = None
+busy_until = 0
+serial_setup_done = False
+DEMO_BRIDGE_SEND_REAL = os.getenv('DEMO_BRIDGE_SEND_REAL', '0') == '1'
+
+
+def send_named_command(command_name, force=False):
+    """Send robot command by name and respect busy window unless forced."""
+    now = time.time()
+    if command_name not in ROBOT_COMMANDS:
+        return False, 'Unknown command: {}'.format(command_name)
+
+    if not force and now < busy_until:
+        remaining_ms = int((busy_until - now) * 1000)
+        return False, 'Robot busy, wait {} ms'.format(max(0, remaining_ms))
+
+    command_code = ROBOT_COMMANDS[command_name]
+    if send_command(command_code):
+        return True, 'Command sent: {}'.format(command_name)
+    return False, 'Failed to send command: {}'.format(command_name)
+
+
+def _demo_robot_callback(command_name):
+    """Callback used by demo engine to dispatch stable predictions."""
+    if not DEMO_BRIDGE_SEND_REAL:
+        return True
+    success, _ = send_named_command(command_name, force=False)
+    return success
+
+
+demo_engine = EEGDemoEngine(send_robot_command_callback=_demo_robot_callback)
 
 
 def ensure_serial_open():
@@ -66,6 +118,7 @@ def ensure_serial_open():
 def init_serial():
     """Initialize serial connection to robot"""
     global serial_connection
+    global last_error_message
     try:
         serial_connection = serial.Serial(
             port=SERIAL_PORT,
@@ -76,32 +129,47 @@ def init_serial():
             timeout=1
         )
         print("Serial port {} opened successfully".format(SERIAL_PORT))
+        last_error_message = None
         return True
     except Exception as e:
         print("Error opening serial port: {}".format(e))
+        last_error_message = str(e)
         return False
 
 def send_command(command_code):
     """Send command byte to robot via serial"""
     global serial_connection
+    global last_error_message
+    global last_command
+    global last_send_time
+    global busy_until
     with serial_lock:
         if not ensure_serial_open():
             print("Serial connection not open")
+            last_error_message = "Serial connection not open"
             return False
         try:
             serial_connection.write(bytes([command_code]))
             serial_connection.flush()
             print("Sent command code: {}".format(command_code))
+            last_command = command_code
+            last_send_time = time.time()
+            busy_until = last_send_time + ROBOT_BUSY_SEC
+            last_error_message = None
             return True
         except Exception as e:
             print("Error sending command: {}".format(e))
+            last_error_message = str(e)
             return False
 
 
-@app.before_first_request
-def setup_serial():
-    """Initialize serial port on first request (covers flask run)."""
-    ensure_serial_open()
+@app.before_request
+def setup_serial_once():
+    """Initialize serial port once in a Flask-version-compatible way."""
+    global serial_setup_done
+    if not serial_setup_done:
+        ensure_serial_open()
+        serial_setup_done = True
 
 @app.route('/')
 def index():
@@ -118,32 +186,59 @@ def handle_command():
     """Handle command from web interface via AJAX"""
     data = request.get_json()
     command_name = data.get('command')
-    
-    if command_name not in ROBOT_COMMANDS:
-        return jsonify({
-            'success': False,
-            'message': 'Unknown command: {}'.format(command_name)
-        })
-    
-    command_code = ROBOT_COMMANDS[command_name]
-    
-    if send_command(command_code):
-        return jsonify({
-            'success': True,
-            'message': 'Command sent: {}'.format(command_name)
-        })
-    else:
-        return jsonify({
-            'success': False,
-            'message': 'Failed to send command: {}'.format(command_name)
-        })
+    force = bool(data.get('force'))
+    success, message = send_named_command(command_name, force=force)
+    return jsonify({'success': success, 'message': message})
+
+
+@app.route('/api/demo/state')
+def demo_state():
+    """Return latest demo engine state snapshot."""
+    return jsonify(demo_engine.snapshot())
+
+
+@app.route('/api/demo/start', methods=['POST'])
+def demo_start():
+    """Start background EEG simulation stream."""
+    return jsonify(demo_engine.start())
+
+
+@app.route('/api/demo/stop', methods=['POST'])
+def demo_stop():
+    """Stop background EEG simulation stream."""
+    return jsonify(demo_engine.stop())
+
+
+@app.route('/api/demo/transition', methods=['POST'])
+def demo_transition():
+    """Schedule transition to another simulated mental command."""
+    data = request.get_json() or {}
+    next_command = data.get('next_command')
+    delay_sec = data.get('delay_sec')
+    result = demo_engine.trigger_transition(next_label=next_command, delay_sec=delay_sec)
+    return jsonify(result)
+
+
+@app.route('/api/demo/robot_bridge', methods=['POST'])
+def demo_robot_bridge():
+    """Enable or disable robot dispatch from stable demo predictions."""
+    data = request.get_json() or {}
+    enabled = bool(data.get('enabled'))
+    return jsonify(demo_engine.set_robot_bridge(enabled))
 
 @app.route('/api/status')
 def get_status():
     """Return system status"""
+    remaining_ms = int(max(0, (busy_until - time.time()) * 1000))
     return jsonify({
         'serial_connected': serial_connection is not None and serial_connection.is_open,
-        'serial_port': SERIAL_PORT
+        'serial_port': SERIAL_PORT,
+        'baud_rate': BAUD_RATE,
+        'last_error': last_error_message,
+        'last_command': last_command,
+        'last_send_time': last_send_time,
+        'busy_until': busy_until,
+        'busy_for_ms': remaining_ms
     })
 
 if __name__ == '__main__':

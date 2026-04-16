@@ -37,12 +37,24 @@ class EEGDemoEngine(object):
             'RIGHT': 'GO_RIGHT'
         }
         
-        self.base_dir = r"C:\Users\YoussefB\Downloads\Graduation Project PreProcessing layer"
+        self.base_dir = os.getenv(
+            "DEMO_BASE_DIR",
+            r"C:\Users\YoussefB\Downloads\Graduation Project PreProcessing layer"
+        )
         self.data_dir = os.path.join(self.base_dir, "Hack_Processed_Data", "AI_Ready_Numpy")
         self.models_dir = os.path.join(self.base_dir, "Trained_Models")
-        
-        # Dynamically load all available subjects
-        self.subjects = sorted([d for d in os.listdir(self.data_dir) if d.startswith("Subject_")])
+
+        # Gracefully degrade when demo assets are not available on this machine.
+        if os.path.isdir(self.data_dir):
+            self.subjects = sorted([d for d in os.listdir(self.data_dir) if d.startswith("Subject_")])
+        else:
+            self.subjects = []
+            self.last_dispatch = {
+                "sent": False,
+                "command": "DEMO_DATA_MISSING",
+                "message": "Demo data directory not found.",
+                "timestamp": time.time()
+            }
         self.current_subject_idx = 0
         
         self.packet_id = 0
@@ -66,12 +78,13 @@ class EEGDemoEngine(object):
         self.current_streak = 0
         self.last_stable_prediction = None
         
-        self.last_dispatch = {
-            "sent": False,
-            "command": None,
-            "message": "No command dispatched yet",
-            "timestamp": None
-        }
+        if not hasattr(self, 'last_dispatch'):
+            self.last_dispatch = {
+                "sent": False,
+                "command": None,
+                "message": "No command dispatched yet",
+                "timestamp": None
+            }
         self._pending_dispatch_command = None
         
         if self.subjects:

@@ -10,9 +10,11 @@ import time
 import serial
 import json
 import os
+import secrets
 from demo_mode import EEGDemoEngine
 
 app = Flask(__name__)
+API_SECURE_TOKEN = secrets.token_urlsafe(32)
 
 # Robot command mappings (from robot_protocol.h)
 ROBOT_COMMANDS = {
@@ -171,10 +173,19 @@ def setup_serial_once():
         ensure_serial_open()
         serial_setup_done = True
 
+@app.before_request
+def verify_api_token():
+    """Prevent command spoofing by verifying X-Neuro-Auth header."""
+    if request.path.startswith('/api/'):
+        token = request.headers.get('X-Neuro-Auth')
+        if not token or token != API_SECURE_TOKEN:
+            from flask import abort
+            abort(403, description="Unauthorized: Invalid or missing API Secure Token")
+
 @app.route('/')
 def index():
     """Serve the main web interface"""
-    return render_template('index.html')
+    return render_template('index.html', api_token=API_SECURE_TOKEN)
 
 @app.route('/api/commands')
 def get_commands():

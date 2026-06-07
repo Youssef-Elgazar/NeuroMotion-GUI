@@ -1,19 +1,35 @@
 #!/usr/bin/env python3
 """
-Robot Control Web Interface - Python 3.6 Compatible
-Provides a web-based GUI to control the HanBack RobonovaAI robot
+NeuroMotion web interface with login, dashboard, and demo streaming controls.
 """
 
-from flask import Flask, render_template, jsonify, request
-import threading
-import time
-import serial
-import json
+from datetime import timedelta
+from functools import wraps
+import ipaddress
 import os
 import secrets
+import threading
+import time
+
+import serial
+from flask import Flask, abort, jsonify, redirect, render_template, request, session, url_for
+
 from demo_mode import EEGDemoEngine
+from neuro_motion_db import (
+    authenticate_user,
+    create_demo_session,
+    finalize_demo_session,
+    get_demo_session,
+    get_user_by_id,
+    get_user_metrics,
+    initialize_database,
+)
 
 app = Flask(__name__)
+app.secret_key = os.getenv('FLASK_SECRET_KEY', secrets.token_hex(32))
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(
+    hours=int(os.getenv('SESSION_LIFETIME_HOURS', '8'))
+)
 API_SECURE_TOKEN = secrets.token_urlsafe(32)
 
 # Robot command mappings (from robot_protocol.h)
@@ -70,7 +86,8 @@ def choose_serial_port():
     return DEFAULT_PORT_CANDIDATES[0]
 
 
-SERIAL_PORT = choose_serial_port()
+# SERIAL_PORT = choose_serial_port()
+SERIAL_PORT = "COM8"
 BAUD_RATE = 4800
 ROBOT_BUSY_SEC = float(os.getenv('ROBOT_BUSY_SEC', '1.5'))
 serial_connection = None
@@ -108,6 +125,80 @@ def _demo_robot_callback(command_name):
 
 
 demo_engine = EEGDemoEngine(send_robot_command_callback=_demo_robot_callback)
+
+initialize_database()
+
+
+def login_required_html(view_function):
+    @wraps(view_function)
+    def wrapper(*args, **kwargs):
+        if not session.get('user_id'):
+            return redirect(url_for('index'))
+        return view_function(*args, **kwargs)
+
+    return wrapper
+
+
+def login_required_api(view_function):
+    @wraps(view_function)
+    def wrapper(*args, **kwargs):
+        if not session.get('user_id'):
+            return jsonify({'success': False, 'message': 'Login required.'}), 401
+        return view_function(*args, **kwargs)
+
+    return wrapper
+
+
+def get_current_user_context():
+    user_id = session.get('user_id')
+    if not user_id:
+        return None
+    return get_user_by_id(user_id)
+
+
+def build_dashboard_context():
+    user = get_current_user_context()
+    if not user:
+        return None
+
+    metrics = get_user_metrics(user['id'])
+    live_state = demo_engine.snapshot()
+    active_mode = session.get('selected_mode', 'mental_command_streaming')
+    active_session_id = session.get('active_demo_session_id')
+    active_session = get_demo_session(active_session_id) if active_session_id else None
+
+    return {
+        'user': user,
+        'metrics': metrics,
+        'live_state': live_state,
+        'active_mode': active_mode,
+        'active_session': active_session,
+        'current_user_name': user['display_name'],
+        'selected_mode_label': 'Mental command streaming' if active_mode == 'mental_command_streaming' else 'Eye tracking',
+    }
+
+
+def ensure_active_demo_session(mode='mental_command_streaming'):
+    user = get_current_user_context()
+    if not user:
+        return None
+
+    active_session_id = session.get('active_demo_session_id')
+    if active_session_id:
+        return active_session_id
+
+    new_session_id = create_demo_session(user['id'], mode=mode)
+    session['active_demo_session_id'] = new_session_id
+    return new_session_id
+
+
+def close_active_demo_session(snapshot=None, status='completed'):
+    active_session_id = session.pop('active_demo_session_id', None)
+    if not active_session_id:
+        return None
+
+    finalize_demo_session(active_session_id, snapshot=snapshot or demo_engine.snapshot(), status=status)
+    return active_session_id
 
 
 def ensure_serial_open():
@@ -175,24 +266,139 @@ def setup_serial_once():
 
 @app.before_request
 def verify_api_token():
-    """Prevent command spoofing by verifying X-Neuro-Auth header."""
+    """Prevent command spoofing by verifying X-Neuro-Auth header.
+
+    Private/local network clients are allowed without the header so the UI
+    works on a hotspot or LAN without extra setup.
+    """
     if request.path.startswith('/api/'):
         token = request.headers.get('X-Neuro-Auth')
+        remote_addr = request.remote_addr
+
+        is_private_client = False
+        if remote_addr:
+            try:
+                address = ipaddress.ip_address(remote_addr)
+                is_private_client = address.is_private or address.is_loopback
+            except ValueError:
+                is_private_client = False
+
+        if token == API_SECURE_TOKEN or is_private_client:
+            return
+
         if not token or token != API_SECURE_TOKEN:
             from flask import abort
             abort(403, description="Unauthorized: Invalid or missing API Secure Token")
 
 @app.route('/')
 def index():
-    """Serve the main web interface"""
-    return render_template('index.html', api_token=API_SECURE_TOKEN)
+    """Serve the login page or redirect authenticated users to the dashboard."""
+    if session.get('user_id'):
+        return redirect(url_for('dashboard'))
+
+    return render_template(
+        'index.html',
+        logged_in=False,
+        api_token=API_SECURE_TOKEN,
+        brand_name='NeuroMotion',
+        slogan='Your thoughts, our commands',
+        login_error=None,
+    )
+
+
+@app.route('/login', methods=['POST'])
+def login():
+    username = (request.form.get('username') or '').strip()
+    password = request.form.get('password') or ''
+    user = authenticate_user(username, password)
+
+    if not user:
+        return render_template(
+            'index.html',
+            logged_in=False,
+            api_token=API_SECURE_TOKEN,
+            brand_name='NeuroMotion',
+            slogan='Your thoughts, our commands',
+            login_error='Invalid username or password.',
+        ), 401
+
+    session.clear()
+    session.permanent = True
+    session['user_id'] = user['id']
+    session['username'] = user['username']
+    session['display_name'] = user['display_name']
+    session['selected_mode'] = 'mental_command_streaming'
+    return redirect(url_for('dashboard'))
+
+
+@app.route('/dashboard')
+@login_required_html
+def dashboard():
+    context = build_dashboard_context()
+    if context is None:
+        return redirect(url_for('index'))
+
+    return render_template(
+        'index.html',
+        logged_in=True,
+        api_token=API_SECURE_TOKEN,
+        brand_name='NeuroMotion',
+        slogan='Your thoughts, our commands',
+        login_error=None,
+        **context,
+    )
+
+
+@app.route('/logout', methods=['POST'])
+@login_required_html
+def logout():
+    close_active_demo_session(status='interrupted')
+    session.clear()
+    return redirect(url_for('index'))
+
+
+@app.route('/api/dashboard/overview')
+@login_required_api
+def dashboard_overview():
+    context = build_dashboard_context()
+    if context is None:
+        return jsonify({'success': False, 'message': 'Login required.'}), 401
+
+    return jsonify({
+        'success': True,
+        'user': context['user'],
+        'metrics': context['metrics'],
+        'live_state': context['live_state'],
+        'selected_mode': context['active_mode'],
+        'selected_mode_label': context['selected_mode_label'],
+        'active_session': context['active_session'],
+    })
+
+
+@app.route('/api/dashboard/select-mode', methods=['POST'])
+@login_required_api
+def dashboard_select_mode():
+    data = request.get_json(silent=True) or {}
+    mode = data.get('mode')
+
+    if mode == 'mental_command_streaming':
+        session['selected_mode'] = mode
+        return jsonify({'success': True, 'mode': mode, 'message': 'Mental command streaming selected.'})
+
+    if mode == 'eye_tracking':
+        session['selected_mode'] = mode
+        return jsonify({'success': True, 'mode': mode, 'message': 'Eye tracking mode will be available soon.'})
+
+    return jsonify({'success': False, 'message': 'Unknown mode selection.'}), 400
 
 @app.route('/api/commands')
+@login_required_api
 def get_commands():
     """Return list of available commands"""
     return jsonify(list(ROBOT_COMMANDS.keys()))
 
 @app.route('/api/send_command', methods=['POST'])
+@login_required_api
 def handle_command():
     """Handle command from web interface via AJAX"""
     data = request.get_json()
@@ -203,24 +409,34 @@ def handle_command():
 
 
 @app.route('/api/demo/state')
+@login_required_api
 def demo_state():
     """Return latest demo engine state snapshot."""
     return jsonify(demo_engine.snapshot())
 
 
 @app.route('/api/demo/start', methods=['POST'])
+@login_required_api
 def demo_start():
     """Start background EEG simulation stream."""
-    return jsonify(demo_engine.start())
+    result = demo_engine.start()
+    if result.get('success') or 'Already running' in result.get('message', ''):
+        session['selected_mode'] = 'mental_command_streaming'
+        ensure_active_demo_session(mode='mental_command_streaming')
+    return jsonify(result)
 
 
 @app.route('/api/demo/stop', methods=['POST'])
+@login_required_api
 def demo_stop():
     """Stop background EEG simulation stream."""
-    return jsonify(demo_engine.stop())
+    result = demo_engine.stop()
+    close_active_demo_session(snapshot=demo_engine.snapshot(), status='completed')
+    return jsonify(result)
 
 
 @app.route('/api/demo/transition', methods=['POST'])
+@login_required_api
 def demo_transition():
     """Schedule transition to another simulated mental command."""
     data = request.get_json() or {}
@@ -231,6 +447,7 @@ def demo_transition():
 
 
 @app.route('/api/demo/robot_bridge', methods=['POST'])
+@login_required_api
 def demo_robot_bridge():
     """Enable or disable robot dispatch from stable demo predictions."""
     data = request.get_json() or {}
@@ -238,6 +455,7 @@ def demo_robot_bridge():
     return jsonify(demo_engine.set_robot_bridge(enabled))
 
 @app.route('/api/status')
+@login_required_api
 def get_status():
     """Return system status"""
     remaining_ms = int(max(0, (busy_until - time.time()) * 1000))

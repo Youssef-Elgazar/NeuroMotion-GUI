@@ -1,30 +1,31 @@
-# Robot Control Web Interface - Setup Guide (Python 3.6)
+# NeuroMotion Web Interface
 
-## EEG Demo Mode (Simulated Input)
+## Overview
 
-The interface now includes a separated **Prediction Model Demo** panel that simulates real-time EEG packets without a headset.
+The application now opens with a database-backed login page and, after authentication, redirects to a cleaner dashboard for the NeuroMotion experience.
 
-### What it does
+### What it includes
 
-- Streams placeholder 14-channel EEG packets.
-- Simulates delayed transitions between mental commands.
-- Shows live packet values, ground-truth label, predicted label, confidence, and cumulative accuracy.
-- Uses stability gating before dispatching predicted commands to the robot.
+- A seeded SQLite-backed admin account created automatically on first launch.
+- Login credentials for the default admin user: `admin` / `admin`.
+- A polished dashboard with mental command streaming, eye tracking placeholder mode, live telemetry, and session history.
+- Persistent demo-session metrics stored in the local database.
 
 ### Demo controls in the page
 
-- **Start Stream**: starts the EEG simulation.
-- **Stop Stream**: stops simulation.
-- **Next Command Transition**: schedules a delayed switch to another command.
-- **Enable Robot Bridge**: allows stable predicted outputs to trigger robot commands.
+- **Start streaming**: starts the EEG-style demo stream.
+- **Stop streaming**: stops the demo stream.
+- **Activate demo**: selects the mental command mode and starts the stream.
+- **Eye tracking mode**: shown as the next implementation target.
 
 ### Optional environment variables
 
-- `DEMO_PACKET_INTERVAL_SEC` (default `0.25`)
-- `DEMO_SWITCH_DELAY_SEC` (default `2.0`)
-- `DEMO_AUTO_SWITCH_EVERY_SEC` (default `6.0`)
-- `DEMO_CONFIDENCE_THRESHOLD` (default `80.0`)
-- `DEMO_STREAK_REQUIRED` (default `3`)
+- `FLASK_SECRET_KEY` (recommended for persistent sessions)
+- `SESSION_LIFETIME_HOURS` (default `8`)
+- `SERIAL_PORT` if you want to override the robot connection in code later
+- `DEMO_PACKET_INTERVAL_SEC` (default `3.0`)
+- `DEMO_CONFIDENCE_THRESHOLD` (default `0.60`)
+- `DEMO_STREAK_REQUIRED` (default `2`)
 - `DEMO_BRIDGE_SEND_REAL` (default `0`, set `1` to forward stable predictions to robot serial)
 
 ### API endpoints added
@@ -35,89 +36,28 @@ The interface now includes a separated **Prediction Model Demo** panel that simu
 - `POST /api/demo/transition`
 - `POST /api/demo/robot_bridge`
 
+## Run It
+
+```bash
+pip install -r requirements.txt
+python app.py
+```
+
+The first run creates `instance/neuro_motion.db` and seeds the admin user automatically.
+
 ## Files Structure
 
-Create the following directory structure:
+The current project layout is:
 
 ```
-robot_web_control/
-├── app.py                 # Main Flask application
-├── requirements.txt       # Python dependencies
+Web_Interface/
+├── app.py
+├── controller.py
+├── demo_mode.py
+├── neuro_motion_db.py
+├── security.py
 └── templates/
-    └── index.html        # Web interface
-```
-
-## Requirements File
-
-Create `requirements.txt`:
-
-```
-Flask==1.1.4
-pyserial==3.5
-Werkzeug==1.0.1
-MarkupSafe==2.0.1
-Jinja2==2.11.3
-itsdangerous==1.1.0
-click==7.1.2
-```
-
-## Installation Steps
-
-### 1. Install Python Dependencies
-
-```bash
-# Navigate to your project directory
-cd robot_web_control
-
-# Upgrade pip first (important for Python 3.6)
-pip3 install --upgrade pip
-
-# Install required packages
-pip3 install -r requirements.txt
-```
-
-### 2. Setup Files
-
-- Copy the Python code into `app.py`
-- Create `templates` folder: `mkdir -p templates`
-- Copy the HTML code into `templates/index.html`
-
-### 3. Configure Serial Port
-
-Edit `app.py` if needed to match your serial port:
-
-```python
-SERIAL_PORT = '/dev/ttyS1'  # Change if different
-BAUD_RATE = 4800
-```
-
-### 4. Grant Serial Port Permissions
-
-```bash
-# Add your user to dialout group
-sudo usermod -a -G dialout $USER
-
-# Then logout and login again, or:
-sudo chmod 666 /dev/ttyS1
-```
-
-### 5. Run the Application
-
-```bash
-python3 app.py
-```
-
-You'll see output like:
-
-```
-Serial port /dev/ttyS1 opened successfully
-============================================================
-Robot Control Web Interface
-============================================================
-Access locally at: http://localhost:5000
-Access from network at: http://192.168.1.100:5000
-============================================================
- * Running on http://0.0.0.0:5000/ (Press CTRL+C to quit)
+   └── index.html
 ```
 
 ## Accessing from Other Devices

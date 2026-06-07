@@ -4,286 +4,742 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="api-token" content="{{ api_token }}">
-    <title>Neuromotion Control Dashboard</title>
-    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <title>NeuroMotion</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-0: #f4f7fb;
-            --bg-1: #ffffff;
-            --bg-2: #eef3f8;
-            --line: #d7e1ec;
-            --line-strong: #bdcad8;
-            --ink: #0f1b2d;
-            --muted: #5f6f84;
-            --accent: #0e5bd8;
-            --accent-soft: #deebff;
-            --ok: #13795b;
-            --danger: #b3261e;
-            --font-display: 'IBM Plex Sans', sans-serif;
-            --font-body: 'IBM Plex Sans', sans-serif;
-            --shadow: 0 16px 40px rgba(15, 27, 45, 0.08);
+            --bg: #fafafa;
+            --bg-strong: #f3f4f6;
+            --panel: rgba(255, 255, 255, 0.98);
+            --panel-solid: #ffffff;
+            --line: rgba(15, 23, 42, 0.08);
+            --line-strong: rgba(15, 23, 42, 0.16);
+            --ink: #1f2937;
+            --muted: #5b6472;
+            --muted-2: #707784;
+            --accent: #1a73e8;
+            --accent-soft: #e8f0fe;
+            --accent-2: #4f83f1;
+            --success: #157347;
+            --danger: #be3c2f;
+            --warning: #9c6610;
+            --shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+            --shadow-soft: 0 2px 10px rgba(15, 23, 42, 0.04);
+            --radius-xl: 22px;
+            --radius-lg: 18px;
+            --radius-md: 14px;
+            --radius-sm: 10px;
         }
 
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        * {
+            box-sizing: border-box;
+        }
+
+        html, body {
+            margin: 0;
+            min-height: 100%;
+        }
 
         body {
-            font-family: var(--font-body);
-            background:
-                radial-gradient(circle at 5% 5%, #ffffff 0%, transparent 36%),
-                radial-gradient(circle at 95% 0%, #d9ecff 0%, transparent 24%),
-                linear-gradient(140deg, #eef3f9 0%, #f8fbff 56%, #edf3fa 100%);
+            font-family: 'Manrope', sans-serif;
             color: var(--ink);
-            min-height: 100vh;
-            padding: 28px;
-            overflow-x: hidden;
+            background: linear-gradient(180deg, #ffffff 0%, #f6f7f9 100%);
         }
 
-        .container {
-            max-width: 1280px;
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            background-image: linear-gradient(rgba(15, 23, 42, 0.018) 1px, transparent 1px), linear-gradient(90deg, rgba(15, 23, 42, 0.018) 1px, transparent 1px);
+            background-size: 72px 72px;
+            mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.1), transparent 72%);
+        }
+
+        .shell {
+            position: relative;
+            z-index: 1;
+            max-width: 1480px;
             margin: 0 auto;
+            padding: 24px;
         }
 
-        .header {
-            background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
-            border: 1px solid var(--line);
-            padding: 24px 28px;
-            border-radius: 16px;
-            margin-bottom: 18px;
-            box-shadow: var(--shadow);
-            animation: fadeIn 420ms ease;
-        }
-
-        h1 {
-            font-family: var(--font-display);
-            color: var(--ink);
-            font-size: clamp(1.55rem, 2.6vw, 2.1rem);
-            font-weight: 600;
-            letter-spacing: 0;
-            line-height: 1.2;
-        }
-
-        .subtitle {
-            margin-top: 8px;
-            font-size: 0.96rem;
-            color: var(--muted);
-            letter-spacing: 0.01em;
-        }
-
-        .layout-grid {
+        .page-grid {
             display: grid;
-            grid-template-columns: minmax(240px, 290px) 1fr;
-            gap: 18px;
-            margin-bottom: 14px;
+            gap: 24px;
+            animation: riseIn 560ms ease both;
+        }
+
+        .auth-grid {
+            grid-template-columns: minmax(320px, 480px) 1fr;
+            min-height: calc(100vh - 56px);
+            align-items: stretch;
+        }
+
+        .dashboard-grid {
+            grid-template-columns: minmax(280px, 334px) 1fr;
+            align-items: start;
         }
 
         .panel {
-            background: rgba(255, 255, 255, 0.92);
+            background: var(--panel);
             border: 1px solid var(--line);
-            border-radius: 16px;
-            padding: 20px;
+            border-radius: var(--radius-xl);
             box-shadow: var(--shadow);
-            animation: fadeInUp 520ms ease;
+        }
+
+        .panel-inner {
+            padding: 28px;
+        }
+
+        .brand-mark {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 48px;
+            height: 48px;
+            border-radius: 15px;
+            background: #111827;
+            color: white;
+            font-family: 'Space Grotesk', sans-serif;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            box-shadow: 0 10px 20px rgba(17, 24, 39, 0.18);
+        }
+
+        .brand-name {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: clamp(2.4rem, 5vw, 4.2rem);
+            letter-spacing: -0.04em;
+            margin: 18px 0 10px;
+        }
+
+        .slogan {
+            font-size: 1.08rem;
+            color: var(--muted);
+            line-height: 1.6;
+            max-width: 34rem;
+        }
+
+        .eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.14em;
+            color: #111827;
+        }
+
+        .eyebrow::before {
+            content: '';
+            width: 10px;
+            height: 10px;
+            border-radius: 999px;
+            background: #111827;
+            box-shadow: 0 0 0 6px rgba(17, 24, 39, 0.06);
+        }
+
+        .auth-copy {
+            display: grid;
+            align-content: center;
+            gap: 18px;
+            padding: 18px;
+            border-radius: var(--radius-xl);
+            background: linear-gradient(180deg, #ffffff 0%, #f6f7f9 100%);
+            color: var(--ink);
+            box-shadow: var(--shadow);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .auth-copy::after {
+            content: '';
+            position: absolute;
+            width: 360px;
+            height: 360px;
+            border-radius: 50%;
+            right: -140px;
+            top: -130px;
+            background: radial-gradient(circle, rgba(17, 24, 39, 0.08), transparent 68%);
+        }
+
+        .auth-copy .slogan {
+            color: var(--muted);
+            max-width: 24rem;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px;
+            margin-top: 12px;
+        }
+
+        .feature-card,
+        .metric-card,
+        .session-card,
+        .mode-card,
+        .stream-card,
+        .mini-card {
+            border: 1px solid var(--line);
+            border-radius: var(--radius-md);
+            background: #ffffff;
+            box-shadow: var(--shadow-soft);
+        }
+
+        .feature-card {
+            padding: 14px;
+        }
+
+        .feature-title,
+        .metric-title,
+        .section-title,
+        .panel-title {
+            font-family: 'Space Grotesk', sans-serif;
+            letter-spacing: -0.02em;
+        }
+
+        .feature-title {
+            font-size: 0.95rem;
+            margin-bottom: 6px;
+        }
+
+        .feature-copy {
+            font-size: 0.87rem;
+            color: var(--muted);
+            line-height: 1.55;
+        }
+
+        .auth-form-wrap {
+            display: grid;
+            align-content: center;
+        }
+
+        .auth-form-card {
+            padding: 32px;
         }
 
         .panel-title {
-            font-family: var(--font-display);
-            color: var(--ink);
-            font-size: 1rem;
-            text-transform: none;
-            letter-spacing: 0.01em;
-            margin-bottom: 14px;
-            display: flex;
-            align-items: center;
-            gap: 9px;
+            margin: 0 0 8px;
+            font-size: 1.55rem;
         }
 
-        .panel-title::before {
-            content: '';
-            display: inline-block;
-            width: 8px;
-            height: 8px;
-            border-radius: 999px;
-            background: var(--accent);
-        }
-
-        .demo-stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
-            gap: 12px;
-            margin-bottom: 18px;
-        }
-
-        .stat-card {
-            background: linear-gradient(180deg, var(--bg-1), var(--bg-2));
-            border: 1px solid var(--line);
-            border-radius: 12px;
-            padding: 14px;
-            transition: border-color 0.22s ease, transform 0.22s ease;
-        }
-
-        .stat-card:hover {
-            border-color: var(--line-strong);
-            transform: translateY(-1px);
-        }
-
-        .stat-label {
+        .panel-copy {
+            margin: 0 0 22px;
             color: var(--muted);
-            font-size: 0.73rem;
-            letter-spacing: 0.04em;
-            text-transform: uppercase;
-            margin-bottom: 5px;
+            line-height: 1.6;
         }
 
-        .stat-value {
-            font-size: 1.28rem;
+        .form-grid {
+            display: grid;
+            gap: 14px;
+        }
+
+        .field {
+            display: grid;
+            gap: 8px;
+        }
+
+        .field label {
+            font-size: 0.88rem;
             font-weight: 700;
             color: var(--ink);
         }
 
-        .prediction-banner {
-            background: linear-gradient(180deg, var(--bg-1), #f9fbfe);
-            border: 1px solid var(--line);
-            border-radius: 12px;
-            padding: 16px;
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 16px;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-
-        .pred-col {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            flex: 1 1 160px;
-            min-width: 140px;
-            padding: 8px 6px;
-        }
-
-        .pred-val {
-            font-family: var(--font-display);
-            font-size: clamp(1.1rem, 2.2vw, 1.5rem);
+        .field input {
+            width: 100%;
+            border: 1px solid var(--line-strong);
+            border-radius: 14px;
+            padding: 14px 16px;
+            font: inherit;
             color: var(--ink);
-            letter-spacing: 0.02em;
+            background: var(--panel-solid);
+            outline: none;
+            transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
         }
 
-        .pred-lbl {
-            color: var(--muted);
-            text-transform: uppercase;
-            font-size: 0.72rem;
-            letter-spacing: 0.05em;
-            margin-bottom: 4px;
-        }
-
-        .pred-active {
-            color: var(--accent);
-        }
-
-        .channel-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
-            gap: 8px;
-        }
-
-        .channel-cell {
-            background: #fff;
-            border: 1px solid var(--line);
-            border-radius: 9px;
-            padding: 9px 8px;
-            text-align: center;
-            transition: border-color 0.2s ease;
-        }
-
-        .channel-cell:hover {
-            border-color: var(--line-strong);
-        }
-
-        .channel-name {
-            font-size: 0.68rem;
-            color: var(--muted);
-            letter-spacing: 0.05em;
-            text-transform: uppercase;
-        }
-
-        .channel-value {
-            font-family: var(--font-display);
-            font-size: 0.82rem;
-            color: var(--ink);
-            margin-top: 4px;
-        }
-
-        .btn-group {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
+        .field input:focus {
+            border-color: rgba(18, 97, 160, 0.55);
+            box-shadow: 0 0 0 4px rgba(18, 97, 160, 0.12);
         }
 
         .btn {
-            background: var(--bg-1);
-            color: var(--ink);
-            border: 1px solid var(--line-strong);
-            border-radius: 10px;
-            padding: 11px 13px;
-            font-family: var(--font-body);
-            font-size: 0.89rem;
-            font-weight: 600;
-            text-transform: none;
+            border: 1px solid transparent;
+            border-radius: 14px;
+            padding: 13px 16px;
+            font: inherit;
+            font-weight: 800;
             letter-spacing: 0.01em;
             cursor: pointer;
-            transition: transform 0.16s ease, border-color 0.16s ease, background-color 0.16s ease;
+            transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease, opacity 160ms ease;
         }
 
         .btn:hover {
-            background: #f7faff;
-            border-color: var(--accent);
             transform: translateY(-1px);
         }
 
-        .btn:active {
-            transform: translateY(0);
+        .btn-primary {
+            color: white;
+            background: #111827;
+            box-shadow: 0 10px 18px rgba(17, 24, 39, 0.12);
         }
 
-        .btn.danger {
-            color: var(--danger);
-            border-color: #e5b9b5;
-            background: #fff;
+        .btn-secondary {
+            color: var(--ink);
+            background: #ffffff;
+            border-color: var(--line-strong);
         }
 
-        .btn.danger:hover {
-            background: #fff4f3;
-            border-color: var(--danger);
-        }
-
-        .btn.active {
-            background: var(--accent-soft);
-            border-color: #b7cff7;
-        }
-
-        .status-wrap {
-            margin-top: 22px;
-            padding-top: 14px;
-            border-top: 1px dashed var(--line-strong);
-        }
-
-        .status-message {
+        .btn-muted {
             color: var(--muted);
-            font-family: var(--font-body);
-            font-size: 0.86rem;
-            margin-top: 6px;
-            line-height: 1.45;
-            word-break: break-word;
+            background: #f8fafc;
+            border-color: var(--line);
         }
 
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
+        .btn-danger {
+            color: white;
+            background: linear-gradient(135deg, #c65147, #a9362e);
+            box-shadow: 0 18px 30px rgba(190, 60, 47, 0.18);
         }
 
-        @keyframes fadeInUp {
+        .btn:disabled {
+            cursor: not-allowed;
+            opacity: 0.6;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .login-note,
+        .inline-note,
+        .subtle-note {
+            color: var(--muted);
+            font-size: 0.88rem;
+            line-height: 1.55;
+        }
+
+        .inline-note {
+            margin-top: 4px;
+        }
+
+        .alert {
+            padding: 12px 14px;
+            border-radius: 14px;
+            font-size: 0.9rem;
+            margin-bottom: 18px;
+        }
+
+        .alert-error {
+            background: rgba(190, 60, 47, 0.08);
+            color: var(--danger);
+            border: 1px solid rgba(190, 60, 47, 0.16);
+        }
+
+        .sidebar {
+            padding: 24px;
+            position: sticky;
+            top: 20px;
+        }
+
+        .sidebar-head {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 18px;
+        }
+
+        .sidebar-title {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.2rem;
+            margin: 0;
+        }
+
+        .sidebar-meta {
+            color: var(--muted);
+            font-size: 0.9rem;
+            margin-top: 2px;
+        }
+
+        .user-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 12px;
+            border-radius: 999px;
+            background: #f3f4f6;
+            color: var(--ink);
+            font-size: 0.84rem;
+            font-weight: 800;
+            margin: 0 0 18px;
+        }
+
+        .section-title {
+            margin: 0 0 10px;
+            font-size: 1.04rem;
+        }
+
+        .mode-stack,
+        .control-stack,
+        .metric-stack,
+        .session-stack {
+            display: grid;
+            gap: 12px;
+        }
+
+        .mode-card,
+        .stream-card,
+        .metric-card,
+        .session-card {
+            padding: 16px;
+        }
+
+        .mode-card.active {
+            border-color: rgba(17, 24, 39, 0.18);
+            box-shadow: 0 12px 24px rgba(15, 23, 42, 0.06);
+        }
+
+        .mode-top,
+        .metric-top,
+        .session-top,
+        .stream-top {
+            display: flex;
+            align-items: start;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .mode-name,
+        .metric-value,
+        .stream-value {
+            font-family: 'Space Grotesk', sans-serif;
+        }
+
+        .mode-name {
+            margin: 0;
+            font-size: 1rem;
+        }
+
+        .mode-desc,
+        .metric-label,
+        .session-meta,
+        .stream-label {
+            color: var(--muted);
+            font-size: 0.87rem;
+            line-height: 1.5;
+        }
+
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 10px;
+            border-radius: 999px;
+            font-size: 0.78rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .status-pill::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            border-radius: 999px;
+            background: currentColor;
+        }
+
+        .status-ghost {
+            background: #f3f4f6;
+            color: var(--ink);
+        }
+
+        .status-success {
+            background: rgba(21, 115, 71, 0.08);
+            color: var(--success);
+        }
+
+        .status-muted {
+            background: rgba(107, 114, 128, 0.08);
+            color: var(--muted-2);
+        }
+
+        .status-warning {
+            background: rgba(156, 102, 16, 0.08);
+            color: var(--warning);
+        }
+
+        .dashboard-main {
+            display: grid;
+            gap: 22px;
+        }
+
+        /* Magazine / image-led styles */
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 18px;
+        }
+
+        .top-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .signout-btn {
+            appearance: none;
+            border: 0;
+            background: rgba(255,255,255,0.9);
+            border-radius: 10px;
+            padding: 10px 14px;
+            font-weight: 700;
+            color: var(--ink);
+            box-shadow: var(--shadow-soft);
+            cursor: pointer;
+        }
+
+        .hero-grid {
+            display: grid;
+            grid-template-columns: 1fr 420px;
+            gap: 22px;
+            align-items: stretch;
+            margin-bottom: 20px;
+        }
+
+        .hero-image {
+            border-radius: var(--radius-xl);
+            overflow: hidden;
+            position: relative;
+            min-height: 260px;
+            box-shadow: var(--shadow);
+            background-size: cover;
+            background-position: center;
+        }
+
+        .hero-overlay {
+            position: absolute;
+            left: 0; right: 0; bottom: 0; top: 0;
+            display: flex;
+            align-items: flex-end;
+            padding: 28px;
+            background: linear-gradient(180deg, rgba(0,0,0,0) 40%, rgba(0,0,0,0.26) 100%);
+        }
+
+        .hero-panel {
+            border-radius: var(--radius-md);
+            padding: 18px;
+            background: rgba(255,255,255,0.96);
+            box-shadow: var(--shadow-soft);
+        }
+
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+        }
+
+        .hero {
+            padding: 32px;
+        }
+
+        .hero-top {
+            display: flex;
+            align-items: start;
+            justify-content: space-between;
+            gap: 18px;
+            margin-bottom: 24px;
+        }
+
+        .hero-title {
+            margin: 8px 0 8px;
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: clamp(2rem, 3.8vw, 3.3rem);
+            letter-spacing: -0.05em;
+        }
+
+        .hero-copy {
+            margin: 0;
+            color: var(--muted);
+            line-height: 1.6;
+            max-width: 52rem;
+        }
+
+        .hero,
+        .stream-hero,
+        .history-panel,
+        .sidebar,
+        .auth-form-card {
+            background: #ffffff;
+        }
+
+        .hero {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero::after {
+            content: '';
+            position: absolute;
+            right: -40px;
+            top: -30px;
+            width: 280px;
+            height: 280px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(17, 24, 39, 0.04), transparent 68%);
+            pointer-events: none;
+        }
+
+        .hero-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+
+        .metric-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .metric-value {
+            font-size: clamp(1.2rem, 2vw, 1.65rem);
+            margin: 8px 0 4px;
+        }
+
+        .metric-aux {
+            color: var(--muted-2);
+            font-size: 0.84rem;
+        }
+
+        .split-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1.18fr) minmax(0, 0.82fr);
+            gap: 18px;
+        }
+
+        .stream-hero,
+        .history-panel {
+            padding: 26px;
+        }
+
+        .stream-summary {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px;
+            margin-top: 16px;
+        }
+
+        .mini-card {
+            padding: 15px;
+            background: #ffffff;
+        }
+
+        .mini-label {
+            color: var(--muted);
+            font-size: 0.76rem;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            margin-bottom: 6px;
+        }
+
+        .mini-value {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.2rem;
+        }
+
+        .session-table {
+            width: 100%;
+            border-collapse: collapse;
+            overflow: hidden;
+        }
+
+        .session-table th,
+        .session-table td {
+            padding: 12px 10px;
+            border-bottom: 1px solid var(--line);
+            text-align: left;
+            font-size: 0.9rem;
+        }
+
+        .session-table th {
+            font-size: 0.76rem;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: var(--muted-2);
+        }
+
+        .session-table td {
+            color: var(--ink);
+        }
+
+        .session-table tbody tr:hover {
+            background: rgba(18, 97, 160, 0.03);
+        }
+
+        .empty-state {
+            padding: 20px;
+            border: 1px dashed var(--line-strong);
+            border-radius: var(--radius-md);
+            color: var(--muted);
+            text-align: center;
+        }
+
+        .note-box {
+            padding: 14px 16px;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--line);
+            background: #fbfbfb;
+            color: var(--ink);
+            font-size: 0.9rem;
+            line-height: 1.55;
+        }
+
+        .mode-actions,
+        .stream-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 14px;
+        }
+
+        .muted-kicker {
+            color: var(--muted-2);
+            font-size: 0.84rem;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 12px;
+            border-radius: 999px;
+            background: rgba(13, 27, 42, 0.08);
+            overflow: hidden;
+            margin-top: 10px;
+        }
+
+        .progress-fill {
+            width: 0%;
+            height: 100%;
+            border-radius: inherit;
+            background: linear-gradient(90deg, var(--accent), var(--accent-2));
+            transition: width 240ms ease;
+        }
+
+        .logout-form {
+            margin: 0;
+        }
+
+        @keyframes riseIn {
             from {
                 opacity: 0;
-                transform: translateY(8px);
+                transform: translateY(16px);
             }
             to {
                 opacity: 1;
@@ -291,236 +747,657 @@
             }
         }
 
-        @media (max-width: 1080px) {
-            .layout-grid {
+        @media (max-width: 1180px) {
+            .auth-grid,
+            .dashboard-grid,
+            .split-grid {
                 grid-template-columns: 1fr;
             }
 
-            .panel {
-                padding: 16px;
+            .auth-grid {
+                min-height: auto;
+            }
+
+            .sidebar {
+                position: static;
+            }
+
+            .metric-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .hero-top {
+                align-items: flex-start;
             }
         }
 
-        @media (max-width: 720px) {
-            body {
+        @media (max-width: 760px) {
+            .shell {
                 padding: 14px;
             }
 
-            .header {
-                padding: 16px;
+            .panel-inner,
+            .auth-form-card,
+            .sidebar,
+            .hero,
+            .stream-hero,
+            .history-panel {
+                padding: 18px;
             }
 
-            .prediction-banner {
-                padding: 12px;
+            .feature-grid,
+            .metric-grid,
+            .stream-summary {
+                grid-template-columns: 1fr;
             }
 
-            .pred-col {
-                min-width: 120px;
-                align-items: flex-start;
+            .auth-grid {
+                gap: 16px;
             }
 
-            .stat-value {
-                font-size: 1.14rem;
+            .hero-top,
+            .mode-top,
+            .metric-top,
+            .session-top,
+            .stream-top {
+                flex-direction: column;
+            }
+
+            .hero-title {
+                font-size: 2rem;
+            }
+
+            .hero-actions,
+            .mode-actions,
+            .stream-actions {
+                width: 100%;
+            }
+
+            .hero-actions .btn,
+            .mode-actions .btn,
+            .stream-actions .btn {
+                width: 100%;
+            }
+
+            .session-table th,
+            .session-table td {
+                padding: 10px 8px;
+                font-size: 0.82rem;
+            }
+
+            .sidebar {
+                top: 0;
             }
         }
-
     </style>
 </head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>Neuromotion Control Dashboard</h1>
-            <p class="subtitle">Neural interface monitoring and robot command operations</p>
-        </div>
+<body data-view="{{ 'dashboard' if logged_in else 'login' }}">
+    {% if not logged_in %}
+    <main class="shell">
+        <section class="page-grid auth-grid">
+            <div class="auth-form-wrap panel">
+                <div class="panel-inner auth-form-card">
+                    <div class="eyebrow">NeuroMotion access</div>
+                    <h1 class="panel-title">Login to continue</h1>
+                    <p class="panel-copy">A secure login gives you access to the NeuroMotion dashboard, live mental command streaming, and session history.</p>
 
-        <div class="layout-grid">
-            <!-- Sidebar Setup -->
-            <div class="panel">
-                <h2 class="panel-title">System Controls</h2>
-                
-                <div class="btn-group" style="margin-bottom: 30px;">
-                    <button class="btn" onclick="startDemo()">Start Stream</button>
-                    <button class="btn danger" onclick="stopDemo()">Stop Stream</button>
-                    <button class="btn" id="bridge-btn" onclick="toggleBridge()">Enable Robot Bridge</button>
-                </div>
+                    {% if login_error %}
+                    <div class="alert alert-error">{{ login_error }}</div>
+                    {% endif %}
 
-                <h2 class="panel-title">Manual Override</h2>
-                <div class="btn-group">
-                    <button class="btn active" onclick="sendCommand('FWD_SHORT_STEP')">Forward Step</button>
-                    <button class="btn active" onclick="sendCommand('BWD_SHORT_STEP')">Backward Step</button>
-                    <button class="btn active" onclick="sendCommand('GO_LEFT')">Step Left</button>
-                    <button class="btn active" onclick="sendCommand('GO_RIGHT')">Step Right</button>
-                    <button class="btn danger" onclick="sendCommand('BOW')">Bow</button>
-                </div>
+                    <form class="form-grid" action="{{ url_for('login') }}" method="post">
+                        <div class="field">
+                            <label for="username">Username</label>
+                            <input id="username" name="username" type="text" autocomplete="username" placeholder="Enter your username" required>
+                        </div>
+                        <div class="field">
+                            <label for="password">Password</label>
+                            <input id="password" name="password" type="password" autocomplete="current-password" placeholder="Enter your password" required>
+                        </div>
+                        <button class="btn btn-primary" type="submit">Sign in</button>
+                    </form>
 
-                <div class="status-wrap">
-                    <p class="stat-label">System Status</p>
-                    <p id="status-message" class="status-message">Awaiting initialization...</p>
+                    <p class="inline-note">Seeded admin credentials: <strong>admin</strong> / <strong>admin</strong>.</p>
                 </div>
             </div>
 
-            <!-- Main HUD -->
-            <div class="panel">
-                <h2 class="panel-title">Neural Telemetry</h2>
-                
-                <div class="prediction-banner">
-                    <div class="pred-col">
-                        <span class="pred-lbl">Active Subject</span>
-                        <span class="pred-val" id="active-subject">N/A</span>
+            <aside class="auth-copy panel">
+                <div class="panel-inner" style="position:relative; z-index:1; padding:0;">
+                    <div class="brand-mark">NM</div>
+                    <div class="brand-name">NeuroMotion</div>
+                    <p class="slogan">Your thoughts, our commands</p>
+
+                    <div class="feature-grid">
+                        <div class="feature-card" style="background: #f8fafc; border-color: var(--line);">
+                            <div class="feature-title">Secure access</div>
+                            <div class="feature-copy">A database-backed admin account is created automatically on first launch.</div>
+                        </div>
+                        <div class="feature-card" style="background: #f8fafc; border-color: var(--line);">
+                            <div class="feature-title">Live dashboard</div>
+                            <div class="feature-copy">Monitor your mental command demo, streaks, accuracy, and session metrics.</div>
+                        </div>
+                        <div class="feature-card" style="background: #f8fafc; border-color: var(--line);">
+                            <div class="feature-title">Modern UX</div>
+                            <div class="feature-copy">A clean layout built to feel like a real application, not a demo shell.</div>
+                        </div>
+                        <div class="feature-card" style="background: #f8fafc; border-color: var(--line);">
+                            <div class="feature-title">Eye tracking soon</div>
+                            <div class="feature-copy">The dashboard already reserves space for the next interaction mode.</div>
+                        </div>
                     </div>
-                    <div class="pred-col">
-                        <span class="pred-lbl">Predicted Intent</span>
-                        <span class="pred-val pred-active" id="predicted-command">IDLE</span>
-                    </div>
-                    <div class="pred-col">
-                        <span class="pred-lbl">Confidence</span>
-                        <span class="pred-val" id="prediction-confidence">0.00%</span>
-                    </div>
-                    <div class="pred-col">
-                        <span class="pred-lbl">Ground Truth</span>
-                        <span class="pred-val" id="ground-truth" style="color:var(--muted);">---</span>
+                </div>
+            </aside>
+        </section>
+    </main>
+    {% else %}
+    <main class="shell">
+        <section class="page-grid dashboard-grid">
+            <aside class="panel sidebar">
+                <div class="sidebar-head">
+                    <div class="brand-mark">NM</div>
+                    <div>
+                        <h2 class="sidebar-title">NeuroMotion</h2>
+                        <div class="sidebar-meta">Your thoughts, our commands</div>
                     </div>
                 </div>
 
-                <div class="demo-stats">
-                    <div class="stat-card">
-                        <div class="stat-label">Stream Status</div>
-                        <div class="stat-value" id="stream-status">OFFLINE</div>
+                <div class="user-chip">Signed in as {{ current_user_name }}</div>
+
+                <div class="section-title">Select mode</div>
+                <div class="mode-stack" id="mode-stack">
+                    <div class="mode-card active" data-mode-card="mental_command_streaming">
+                        <div class="mode-top">
+                            <div>
+                                <p class="mode-name">Mental command streaming</p>
+                                <div class="mode-desc">Use the implemented demo stream to explore real-time EEG-style command predictions.</div>
+                            </div>
+                            <span class="status-pill status-success">Available</span>
+                        </div>
+                        <div class="mode-actions">
+                            <button class="btn btn-primary" type="button" onclick="activateMode('mental_command_streaming')">Activate demo</button>
+                        </div>
                     </div>
-                    <div class="stat-card">
-                        <div class="stat-label">Model Accuracy</div>
-                        <div class="stat-value" id="accuracy">0.00%</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-label">Stability Streak</div>
-                        <div class="stat-value" id="streak">0/2</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-label">Robot Dispatch</div>
-                        <div class="stat-value" id="dispatch-status" style="font-size: 1rem; margin-top: 5px; color: var(--danger);">Bridge disconnected</div>
+
+                    <div class="mode-card" data-mode-card="eye_tracking">
+                        <div class="mode-top">
+                            <div>
+                                <p class="mode-name">Eye tracking mode</p>
+                                <div class="mode-desc">Reserved for the next implementation phase.</div>
+                            </div>
+                            <span class="status-pill status-warning">Coming soon</span>
+                        </div>
+                        <div class="mode-actions">
+                            <button class="btn btn-muted" type="button" onclick="activateMode('eye_tracking')">Mark as selected</button>
+                        </div>
                     </div>
                 </div>
 
-                <h2 class="panel-title" style="margin-top: 22px;">EEG Channels (uV)</h2>
-                <div class="channel-grid" id="channel-grid">
-                    <!-- Channels rendered via JS -->
+                <div style="height: 18px;"></div>
+
+                <div class="section-title">Quick controls</div>
+                <div class="control-stack">
+                    <button class="btn btn-primary" type="button" onclick="startDemo()">Start streaming</button>
+                    <button class="btn btn-danger" type="button" onclick="stopDemo()">Stop streaming</button>
+                    <button class="btn btn-secondary" type="button" id="bridge-toggle" onclick="toggleBridge()">Enable robot bridge</button>
                 </div>
-            </div>
-        </div>
-    </div>
+
+                <div style="height: 18px;"></div>
+
+                <div class="section-title">Current session</div>
+                <div class="session-card">
+                    <div class="session-top">
+                        <div>
+                            <div class="muted-kicker">Selected mode</div>
+                            <div class="metric-value" id="current-mode-label">{{ selected_mode_label }}</div>
+                        </div>
+                        <span class="status-pill status-ghost" id="bridge-state-pill">Bridge idle</span>
+                    </div>
+                    <p class="session-meta" id="sidebar-session-message">Your dashboard is ready.</p>
+                </div>
+
+                <form class="logout-form" action="{{ url_for('logout') }}" method="post">
+                    <div style="height: 16px;"></div>
+                    <button class="btn btn-secondary" type="submit" style="width: 100%;">Sign out</button>
+                </form>
+            </aside>
+
+            <section class="dashboard-main">
+                <article class="panel hero">
+                    <div class="hero-top">
+                        <div>
+                            <div class="eyebrow">Dashboard</div>
+                            <h1 class="hero-title">Welcome back, {{ current_user_name }}</h1>
+                            <p class="hero-copy">Your live stream is organized like a real application: one place for mode selection, live predictions, previous sessions, and usage analytics.</p>
+                        </div>
+                        <div class="hero-actions">
+                            <button class="btn btn-primary" type="button" onclick="startDemo()">Launch demo</button>
+                            <button class="btn btn-secondary" type="button" onclick="refreshOverview()">Refresh metrics</button>
+                        </div>
+                    </div>
+
+                    <div class="hero-grid">
+                        <div class="hero-image" style="background-image: url('https://images.unsplash.com/photo-1506765515384-028b60a970df?auto=format&fit=crop&w=1600&q=80');">
+                            <div class="hero-overlay">
+                                <div class="hero-panel">
+                                    <div class="panel-title">Live insight</div>
+                                    <p class="panel-copy">A quick snapshot of your current demo stream, recent sessions, and system state. Images help make the dashboard feel like a real editorial experience.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px;">
+                                <div>
+                                    <div class="eyebrow">Quick snapshot</div>
+                                    <h3 class="panel-title" style="margin:6px 0 0;">Overview</h3>
+                                </div>
+                                <div class="top-actions">
+                                    <form action="{{ url_for('logout') }}" method="post" style="margin:0;">
+                                        <button class="signout-btn" type="submit">Sign out</button>
+                                    </form>
+                                </div>
+                            </div>
+
+                            <div class="card-grid">
+                                <div class="panel metric-card">
+                                    <div class="metric-label">Total sessions</div>
+                                    <div class="metric-value" id="metric-total-sessions_small">{{ metrics.total_sessions }}</div>
+                                    <div class="metric-aux">Sessions stored in the database</div>
+                                </div>
+                                <div class="panel metric-card">
+                                    <div class="metric-label">Avg accuracy</div>
+                                    <div class="metric-value" id="metric-average-accuracy_small">{{ metrics.average_accuracy }}%</div>
+                                    <div class="metric-aux">Mean of completed runs</div>
+                                </div>
+                                <div class="panel metric-card">
+                                    <div class="metric-label">Active subject</div>
+                                    <div class="metric-value" id="active-subject_small">{{ live_state.active_subject or 'N/A' }}</div>
+                                    <div class="metric-aux">Current demo subject</div>
+                                </div>
+                                <div class="panel metric-card">
+                                    <div class="metric-label">Bridge</div>
+                                    <div class="metric-value" id="bridge-state-small">{{ 'Enabled' if live_state.robot_bridge_enabled else 'Idle' }}</div>
+                                    <div class="metric-aux">Robot bridge state</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="metric-grid">
+                        <div class="metric-card">
+                            <div class="metric-label">Total sessions</div>
+                            <div class="metric-value" id="metric-total-sessions">{{ metrics.total_sessions }}</div>
+                            <div class="metric-aux">Sessions stored in the database</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-label">Average accuracy</div>
+                            <div class="metric-value" id="metric-average-accuracy">{{ metrics.average_accuracy }}%</div>
+                            <div class="metric-aux">Mean of previous completed runs</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-label">Average confidence</div>
+                            <div class="metric-value" id="metric-average-confidence">{{ metrics.average_confidence }}%</div>
+                            <div class="metric-aux">Model confidence across history</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-label">Total packets</div>
+                            <div class="metric-value" id="metric-total-packets">{{ metrics.total_packets }}</div>
+                            <div class="metric-aux">Accumulated demo stream packets</div>
+                        </div>
+                    </div>
+                </article>
+
+                <section class="split-grid">
+                    <article class="panel stream-hero">
+                        <div class="stream-top">
+                            <div>
+                                <div class="muted-kicker">Live mental command stream</div>
+                                <h2 class="section-title" style="margin-top: 6px; font-size: 1.3rem;">Realtime prediction window</h2>
+                            </div>
+                            <span class="status-pill status-muted" id="stream-status-pill">Idle</span>
+                        </div>
+
+                        <div class="stream-summary">
+                            <div class="mini-card">
+                                <div class="mini-label">Active subject</div>
+                                <div class="mini-value" id="active-subject">N/A</div>
+                            </div>
+                            <div class="mini-card">
+                                <div class="mini-label">Stream accuracy</div>
+                                <div class="mini-value" id="stream-accuracy">0.00%</div>
+                            </div>
+                            <div class="mini-card">
+                                <div class="mini-label">Predicted intent</div>
+                                <div class="mini-value" id="predicted-command">IDLE</div>
+                            </div>
+                            <div class="mini-card">
+                                <div class="mini-label">Confidence</div>
+                                <div class="mini-value" id="prediction-confidence">0.00%</div>
+                            </div>
+                            <div class="mini-card">
+                                <div class="mini-label">Streak</div>
+                                <div class="mini-value" id="streak">0/0</div>
+                            </div>
+                            <div class="mini-card">
+                                <div class="mini-label">Ground truth</div>
+                                <div class="mini-value" id="ground-truth">---</div>
+                            </div>
+                        </div>
+
+                        <div style="height: 14px;"></div>
+                        <div class="note-box" id="stream-note">Use the demo controls in the sidebar to start the mental command stream and watch the live telemetry update here.</div>
+
+                        <div class="stream-actions">
+                            <button class="btn btn-primary" type="button" onclick="startDemo()">Start demo stream</button>
+                            <button class="btn btn-danger" type="button" onclick="stopDemo()">Stop demo stream</button>
+                            <button class="btn btn-secondary" type="button" onclick="toggleBridge()">Toggle robot bridge</button>
+                        </div>
+                    </article>
+
+                    <aside class="panel history-panel">
+                        <div class="stream-top">
+                            <div>
+                                <div class="muted-kicker">Usage metrics</div>
+                                <h2 class="section-title" style="margin-top: 6px; font-size: 1.3rem;">Session history</h2>
+                            </div>
+                            <span class="status-pill status-success" id="history-count-pill">{{ metrics.completed_sessions }} completed</span>
+                        </div>
+
+                        <div class="metric-stack" style="margin-bottom: 18px;">
+                            <div class="metric-card">
+                                <div class="metric-label">Last selected mode</div>
+                                <div class="metric-value" id="last-mode">{{ metrics.last_mode }}</div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="metric-label">Recent sessions</div>
+                                <div class="metric-value" id="recent-session-count">{{ metrics.recent_sessions|length }}</div>
+                            </div>
+                        </div>
+
+                        <div class="table-wrap">
+                            <table class="session-table">
+                                <thead>
+                                    <tr>
+                                        <th>Started</th>
+                                        <th>Mode</th>
+                                        <th>Status</th>
+                                        <th>Acc.</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="session-history-body">
+                                    {% if metrics.recent_sessions %}
+                                        {% for item in metrics.recent_sessions %}
+                                        <tr>
+                                            <td>{{ item.started_at }}</td>
+                                            <td>{{ item.mode }}</td>
+                                            <td>{{ item.status }}</td>
+                                            <td>{{ '%.2f'|format(item.accuracy or 0) }}%</td>
+                                        </tr>
+                                        {% endfor %}
+                                    {% else %}
+                                        <tr>
+                                            <td colspan="4">
+                                                <div class="empty-state">No demo sessions recorded yet. Start the mental command stream to populate history.</div>
+                                            </td>
+                                        </tr>
+                                    {% endif %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </aside>
+                </section>
+            </section>
+        </section>
+    </main>
 
     <script>
-        let demoPollTimer = null;
-        
-        // Grab dynamic API token to prevent endpoint spoofing
-        const API_TOKEN = document.querySelector('meta[name="api-token"]').getAttribute('content');
+        const API_TOKEN = document.querySelector('meta[name="api-token"]').content;
+        const boot = {
+            selectedMode: {{ active_mode|tojson }},
+            liveState: {{ live_state|tojson }},
+            metrics: {{ metrics|tojson }},
+            user: {{ user|tojson }},
+            recentSessions: {{ metrics.recent_sessions|tojson }},
+        };
 
-        function updateStatus(message, type) {
-            const statusEl = document.getElementById('status-message');
-            statusEl.textContent = message;
-            statusEl.style.color = type === 'error' ? 'var(--danger)' : 'var(--ok)';
+        function apiFetch(url, options = {}) {
+            const headers = Object.assign({}, options.headers || {}, {
+                'Content-Type': 'application/json',
+                'X-Neuro-Auth': API_TOKEN,
+            });
+
+            return fetch(url, Object.assign({}, options, {
+                headers,
+                credentials: 'same-origin',
+            }));
         }
 
-        function sendJson(url, payload) {
-            return fetch(url, {
+        function escapeHtml(value) {
+            return String(value)
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;')
+                .replaceAll("'", '&#39;');
+        }
+
+        function formatPercent(value) {
+            const number = Number(value || 0);
+            return `${number.toFixed(2)}%`;
+        }
+
+        function formatMode(mode) {
+            if (mode === 'mental_command_streaming') {
+                return 'Mental command streaming';
+            }
+            if (mode === 'eye_tracking') {
+                return 'Eye tracking';
+            }
+            return mode || 'N/A';
+        }
+
+        function updateModeCards(mode) {
+            document.querySelectorAll('[data-mode-card]').forEach((card) => {
+                card.classList.toggle('active', card.dataset.modeCard === mode);
+            });
+
+            const currentModeLabel = document.getElementById('current-mode-label');
+            if (currentModeLabel) {
+                currentModeLabel.textContent = formatMode(mode);
+            }
+        }
+
+        function renderSessions(rows) {
+            const body = document.getElementById('session-history-body');
+            if (!body) {
+                return;
+            }
+
+            if (!rows || !rows.length) {
+                body.innerHTML = '<tr><td colspan="4"><div class="empty-state">No demo sessions recorded yet. Start the mental command stream to populate history.</div></td></tr>';
+                return;
+            }
+
+            body.innerHTML = rows.map((row) => {
+                return `<tr>
+                    <td>${escapeHtml(row.started_at || 'N/A')}</td>
+                    <td>${escapeHtml(formatMode(row.mode))}</td>
+                    <td>${escapeHtml(row.status || 'unknown')}</td>
+                    <td>${formatPercent(row.accuracy)}</td>
+                </tr>`;
+            }).join('');
+        }
+
+        function updateLiveState(state) {
+            const live = state || {};
+            boot.liveState = live;
+            const map = [
+                ['active-subject', live.active_subject || 'N/A'],
+                ['stream-accuracy', formatPercent(live.accuracy)],
+                ['predicted-command', live.predicted_label || 'IDLE'],
+                ['prediction-confidence', formatPercent(live.confidence)],
+                ['streak', `${live.streak || 0}/${live.required_streak || 0}`],
+                ['ground-truth', live.ground_truth || '---'],
+            ];
+
+            map.forEach(([id, value]) => {
+                const node = document.getElementById(id);
+                if (node) {
+                    node.textContent = value;
+                }
+            });
+
+            const streamStatus = document.getElementById('stream-status-pill');
+            if (streamStatus) {
+                streamStatus.textContent = live.running ? 'Streaming' : 'Idle';
+                streamStatus.className = `status-pill ${live.running ? 'status-success' : 'status-muted'}`;
+            }
+
+            const bridgePill = document.getElementById('bridge-state-pill');
+            if (bridgePill) {
+                bridgePill.textContent = live.robot_bridge_enabled ? 'Bridge enabled' : 'Bridge idle';
+                bridgePill.className = `status-pill ${live.robot_bridge_enabled ? 'status-success' : 'status-ghost'}`;
+            }
+
+            const note = document.getElementById('stream-note');
+            if (note) {
+                const dispatch = live.last_dispatch || {};
+                note.textContent = dispatch.message || 'Demo telemetry ready.';
+            }
+
+            const bridgeButton = document.getElementById('bridge-toggle');
+            if (bridgeButton) {
+                bridgeButton.textContent = live.robot_bridge_enabled ? 'Disable robot bridge' : 'Enable robot bridge';
+            }
+        }
+
+        function updateMetrics(metrics) {
+            if (!metrics) {
+                return;
+            }
+
+            boot.metrics = metrics;
+
+            const updates = {
+                'metric-total-sessions': metrics.total_sessions,
+                'metric-average-accuracy': formatPercent(metrics.average_accuracy),
+                'metric-average-confidence': formatPercent(metrics.average_confidence),
+                'metric-total-packets': metrics.total_packets,
+                'last-mode': formatMode(metrics.last_mode),
+                'recent-session-count': (metrics.recent_sessions || []).length,
+                'history-count-pill': `${metrics.completed_sessions || 0} completed`,
+            };
+
+            // mirror some values into the image-led hero small cards
+            const smallUpdates = {
+                'metric-total-sessions_small': metrics.total_sessions,
+                'metric-average-accuracy_small': formatPercent(metrics.average_accuracy),
+                'active-subject_small': boot.liveState.active_subject || 'N/A',
+                'bridge-state-small': boot.liveState.robot_bridge_enabled ? 'Enabled' : 'Idle',
+            };
+
+            Object.entries(updates).forEach(([id, value]) => {
+                const node = document.getElementById(id);
+                if (node) {
+                    node.textContent = value;
+                }
+            });
+
+            Object.entries(smallUpdates).forEach(([id, value]) => {
+                const node = document.getElementById(id);
+                if (node) {
+                    node.textContent = value;
+                }
+            });
+
+            renderSessions(metrics.recent_sessions || []);
+        }
+
+        async function refreshOverview() {
+            const response = await apiFetch('{{ url_for('dashboard_overview') }}', { method: 'GET' });
+            const payload = await response.json();
+
+            if (!response.ok || !payload.success) {
+                return;
+            }
+
+            updateModeCards(payload.selected_mode);
+            updateMetrics(payload.metrics);
+            updateLiveState(payload.live_state);
+        }
+
+        async function activateMode(mode) {
+            const response = await apiFetch('{{ url_for('dashboard_select_mode') }}', {
                 method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'X-Neuro-Auth': API_TOKEN
-                },
-                body: JSON.stringify(payload || {})
-            }).then(response => response.json());
+                body: JSON.stringify({ mode }),
+            });
+
+            const payload = await response.json();
+            if (payload.success) {
+                updateModeCards(mode);
+                const note = document.getElementById('sidebar-session-message');
+                if (note) {
+                    note.textContent = payload.message || 'Mode updated.';
+                }
+                if (mode === 'mental_command_streaming') {
+                    await startDemo();
+                }
+                if (mode === 'eye_tracking') {
+                    await refreshOverview();
+                }
+            }
         }
 
-        function sendCommand(commandName) {
-            updateStatus('TX: ' + commandName + '...', 'success');
-            fetch('/api/send_command', {
+        async function startDemo() {
+            await apiFetch('{{ url_for('dashboard_select_mode') }}', {
                 method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'X-Neuro-Auth': API_TOKEN
-                },
-                body: JSON.stringify({ command: commandName })
-            })
-            .then(res => res.json())
-            .then(data => updateStatus(data.message, data.success ? 'success' : 'error'))
-            .catch(err => updateStatus('TX ERR: ' + err.message, 'error'));
+                body: JSON.stringify({ mode: 'mental_command_streaming' }),
+            });
+
+            const response = await apiFetch('{{ url_for('demo_start') }}', { method: 'POST', body: '{}' });
+            const payload = await response.json();
+            const note = document.getElementById('sidebar-session-message');
+
+            if (note) {
+                note.textContent = payload.message || 'Demo stream started.';
+            }
+
+            await refreshOverview();
         }
 
-        function renderChannels(channels, packet) {
-            const grid = document.getElementById('channel-grid');
-            if (!channels || !packet) return;
-            grid.innerHTML = channels.map((ch, i) => `
-                <div class="channel-cell">
-                    <div class="channel-name">${ch}</div>
-                    <div class="channel-value">${Number(packet[i]).toFixed(2)}</div>
-                </div>
-            `).join('');
+        async function stopDemo() {
+            const response = await apiFetch('{{ url_for('demo_stop') }}', { method: 'POST', body: '{}' });
+            const payload = await response.json();
+            const note = document.getElementById('sidebar-session-message');
+
+            if (note) {
+                note.textContent = payload.message || 'Demo stream stopped.';
+            }
+
+            await refreshOverview();
         }
 
-        function renderDemoState(state) {
-            document.getElementById('stream-status').textContent = state.running ? 'ONLINE' : 'OFFLINE';
-            document.getElementById('stream-status').style.color = state.running ? 'var(--ok)' : 'var(--danger)';
-            
-            document.getElementById('active-subject').textContent = state.active_subject || 'N/A';
-            document.getElementById('accuracy').textContent = Number(state.accuracy).toFixed(2) + '%';
-            document.getElementById('ground-truth').textContent = state.ground_truth || '---';
-            
-            const pCmd = document.getElementById('predicted-command');
-            pCmd.textContent = state.predicted_label || 'IDLE';
-            pCmd.style.color = state.is_correct ? 'var(--ok)' : 'var(--danger)';
+        async function toggleBridge() {
+            const current = boot.liveState && boot.liveState.robot_bridge_enabled;
+            const response = await apiFetch('{{ url_for('demo_robot_bridge') }}', {
+                method: 'POST',
+                body: JSON.stringify({ enabled: !current }),
+            });
 
-            document.getElementById('prediction-confidence').textContent = Number(state.confidence || 0).toFixed(1) + '%';
-            document.getElementById('streak').textContent = state.streak + '/' + state.required_streak;
-            
-            const dispatch = state.last_dispatch || {};
-            const dStatus = document.getElementById('dispatch-status');
-            dStatus.textContent = dispatch.message || 'Waiting...';
-            dStatus.style.color = dispatch.sent ? 'var(--ok)' : 'var(--danger)';
+            const payload = await response.json();
+            if (payload && Object.prototype.hasOwnProperty.call(payload, 'enabled')) {
+                boot.liveState.robot_bridge_enabled = payload.enabled;
+            }
 
-            const bridgeBtn = document.getElementById('bridge-btn');
-            bridgeBtn.textContent = state.robot_bridge_enabled ? 'Disable Robot Bridge' : 'Enable Robot Bridge';
-            bridgeBtn.className = state.robot_bridge_enabled ? 'btn danger' : 'btn';
-
-            renderChannels(state.channels, state.packet);
+            await refreshOverview();
         }
 
-        function fetchDemoState() {
-            fetch('/api/demo/state', {
-                headers: { 'X-Neuro-Auth': API_TOKEN }
-            })
-                .then(r => r.json())
-                .then(renderDemoState)
-                .catch(() => updateStatus('Connection lost', 'error'));
-        }
-
-        function ensureDemoPolling() {
-            if (!demoPollTimer) demoPollTimer = setInterval(fetchDemoState, 250);
-        }
-
-        function startDemo() {
-            sendJson('/api/demo/start', {})
-                .then(d => { updateStatus(d.message, d.success ? 'success' : 'error'); ensureDemoPolling(); });
-        }
-
-        function stopDemo() {
-            sendJson('/api/demo/stop', {})
-                .then(d => updateStatus(d.message, d.success ? 'success' : 'error'));
-        }
-
-        function toggleBridge() {
-            sendJson('/api/demo/robot_bridge', { enabled: document.getElementById('bridge-btn').textContent.includes('ENGAGE') })
-                .then(d => updateStatus(d.message, d.success ? 'success' : 'error'));
-        }
-
-        window.addEventListener('load', () => {
-            fetch('/api/status', {
-                headers: { 'X-Neuro-Auth': API_TOKEN }
-            })
-                .then(r => r.json())
-                .then(data => updateStatus(data.serial_connected ? 'ROBOT LINK OK' : 'NO ROBOT DETECTED', data.serial_connected ? 'success' : 'error'));
-            ensureDemoPolling();
+        document.addEventListener('DOMContentLoaded', () => {
+            updateModeCards(boot.selectedMode);
+            updateMetrics(boot.metrics);
+            updateLiveState(boot.liveState);
+            setInterval(refreshOverview, 5000);
         });
     </script>
+    {% endif %}
 </body>
 </html>

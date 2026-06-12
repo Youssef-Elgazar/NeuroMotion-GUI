@@ -938,6 +938,7 @@
                 <div class="control-stack">
                     <button class="btn btn-primary" type="button" onclick="startDemo()">Start streaming</button>
                     <button class="btn btn-danger" type="button" onclick="stopDemo()">Stop streaming</button>
+                    <button class="btn btn-secondary" type="button" id="preset-toggle" onclick="togglePresetMode()">Preset mode: Off</button>
                     <button class="btn btn-secondary" type="button" id="bridge-toggle" onclick="toggleBridge()">Enable robot bridge</button>
                 </div>
 
@@ -950,6 +951,7 @@
                             <div class="muted-kicker">Selected mode</div>
                             <div class="metric-value" id="current-mode-label">{{ selected_mode_label }}</div>
                         </div>
+                        <span class="status-pill status-ghost" id="preset-state-pill">Preset off</span>
                         <span class="status-pill status-ghost" id="bridge-state-pill">Bridge idle</span>
                     </div>
                     <p class="session-meta" id="sidebar-session-message">Your dashboard is ready.</p>
@@ -1252,6 +1254,12 @@
                 streamStatus.className = `status-pill ${live.running ? 'status-success' : 'status-muted'}`;
             }
 
+            const presetPill = document.getElementById('preset-state-pill');
+            if (presetPill) {
+                presetPill.textContent = live.preset_mode_enabled ? 'Preset on' : 'Preset off';
+                presetPill.className = `status-pill ${live.preset_mode_enabled ? 'status-success' : 'status-ghost'}`;
+            }
+
             const bridgePill = document.getElementById('bridge-state-pill');
             if (bridgePill) {
                 bridgePill.textContent = live.robot_bridge_enabled ? 'Bridge enabled' : 'Bridge idle';
@@ -1267,6 +1275,11 @@
             const bridgeButton = document.getElementById('bridge-toggle');
             if (bridgeButton) {
                 bridgeButton.textContent = live.robot_bridge_enabled ? 'Disable robot bridge' : 'Enable robot bridge';
+            }
+
+            const presetButton = document.getElementById('preset-toggle');
+            if (presetButton) {
+                presetButton.textContent = live.preset_mode_enabled ? 'Preset mode: On' : 'Preset mode: Off';
             }
         }
 
@@ -1386,6 +1399,21 @@
             const payload = await response.json();
             if (payload && Object.prototype.hasOwnProperty.call(payload, 'enabled')) {
                 boot.liveState.robot_bridge_enabled = payload.enabled;
+            }
+
+            await refreshOverview();
+        }
+
+        async function togglePresetMode() {
+            const current = boot.liveState && boot.liveState.preset_mode_enabled;
+            const response = await apiFetch('{{ url_for('demo_preset_mode') }}', {
+                method: 'POST',
+                body: JSON.stringify({ enabled: !current }),
+            });
+
+            const payload = await response.json();
+            if (payload && Object.prototype.hasOwnProperty.call(payload, 'enabled')) {
+                boot.liveState.preset_mode_enabled = payload.enabled;
             }
 
             await refreshOverview();

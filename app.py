@@ -11,7 +11,8 @@ import secrets
 import threading
 import time
 
-import serial
+import socket
+# import serial  # [SERIAL] uncomment and replace socket logic to use direct serial instead of Socat TCP
 from flask import Flask, abort, jsonify, redirect, render_template, request, session, url_for
 
 from demo_mode import EEGDemoEngine
@@ -68,36 +69,39 @@ ROBOT_COMMANDS = {
     'FRONT_LIFT_ATTACK': 21
 }
 
-# Serial port configuration (override with SERIAL_PORT env if needed)
-DEFAULT_PORT_CANDIDATES = (
-    ['COM3', 'COM4'] if os.name == 'nt'
-    else ['/dev/ttyUSB0', '/dev/ttyUSB1', '/dev/ttyACM0', '/dev/ttyS1']
-)
-
-
-def choose_serial_port():
-    """Pick serial port from env or first existing candidate."""
-    env_port = os.getenv('SERIAL_PORT')
-    if env_port:
-        return env_port
-    for candidate in DEFAULT_PORT_CANDIDATES:
-        if os.path.exists(candidate):
-            return candidate
-    return DEFAULT_PORT_CANDIDATES[0]
-
-
-# SERIAL_PORT = choose_serial_port()
-SERIAL_PORT = "COM8"
-BAUD_RATE = 4800
+# TCP socket configuration for Socat robot bridge
+ROBOT_TCP_HOST = os.getenv('ROBOT_TCP_HOST', '10.147.196.185')  # Odroid's hotspot IP
+ROBOT_TCP_PORT = int(os.getenv('ROBOT_TCP_PORT', '5000'))
+ROBOT_TCP_TIMEOUT = float(os.getenv('ROBOT_TCP_TIMEOUT', '2.0'))
+BAUD_RATE = 4800  # kept for status display only
 ROBOT_BUSY_SEC = float(os.getenv('ROBOT_BUSY_SEC', '1.5'))
-serial_connection = None
-serial_lock = threading.Lock()
+tcp_lock = threading.Lock()
+# serial_lock = threading.Lock()  # [SERIAL] was used for pyserial thread safety
 last_error_message = None
 last_command = None
 last_send_time = None
 busy_until = 0
 serial_setup_done = False
-DEMO_BRIDGE_SEND_REAL = os.getenv('DEMO_BRIDGE_SEND_REAL', '0') == '1'
+DEMO_BRIDGE_SEND_REAL = '1'
+_tcp_connected = False
+
+# [SERIAL] Previous direct serial configuration:
+# DEFAULT_PORT_CANDIDATES = (
+#     ['COM3', 'COM4'] if os.name == 'nt'
+#     else ['/dev/ttyUSB0', '/dev/ttyUSB1', '/dev/ttyACM0', '/dev/ttyS1']
+# )
+# def choose_serial_port():
+#     env_port = os.getenv('SERIAL_PORT')
+#     if env_port:
+#         return env_port
+#     for candidate in DEFAULT_PORT_CANDIDATES:
+#         if os.path.exists(candidate):
+#             return candidate
+#     return DEFAULT_PORT_CANDIDATES[0]
+# SERIAL_PORT = "COM8"
+# BAUD_RATE = 4800
+# serial_connection = None
+# serial_lock = threading.Lock()
 
 
 def send_named_command(command_name, force=False):
@@ -118,9 +122,11 @@ def send_named_command(command_name, force=False):
 
 def _demo_robot_callback(command_name):
     """Callback used by demo engine to dispatch stable predictions."""
+    print(f"[CALLBACK] called with {command_name}, DEMO_BRIDGE_SEND_REAL={DEMO_BRIDGE_SEND_REAL}")
     if not DEMO_BRIDGE_SEND_REAL:
         return True
-    success, _ = send_named_command(command_name, force=False)
+    success, msg = send_named_command(command_name, force=False)
+    print(f"[CALLBACK] send result: {success}, {msg}")
     return success
 
 
@@ -201,55 +207,93 @@ def close_active_demo_session(snapshot=None, status='completed'):
     return active_session_id
 
 
-def ensure_serial_open():
-    """Make sure the serial port is open; attempt to re-init if not."""
-    global serial_connection
-    if serial_connection and serial_connection.is_open:
-        return True
-    return init_serial()
+# [SERIAL] Previous ensure_serial_open:
+# def ensure_serial_open():
+#     global serial_connection
+#     if serial_connection and serial_connection.is_open:
+#         return True
+#     return init_serial()
 
-def init_serial():
-    """Initialize serial connection to robot"""
-    global serial_connection
-    global last_error_message
+def test_tcp_connection():
+    """Test if the Socat TCP bridge is reachable."""
+    global _tcp_connected, last_error_message
     try:
-        serial_connection = serial.Serial(
-            port=SERIAL_PORT,
-            baudrate=BAUD_RATE,
-            bytesize=serial.EIGHTBITS,
-            parity=serial.PARITY_NONE,
-            stopbits=serial.STOPBITS_ONE,
-            timeout=1
-        )
-        print("Serial port {} opened successfully".format(SERIAL_PORT))
+        s = socket.create_connection((ROBOT_TCP_HOST, ROBOT_TCP_PORT), timeout=ROBOT_TCP_TIMEOUT)
+        s.close()
+        _tcp_connected = True
         last_error_message = None
+        print("TCP bridge {}:{} reachable".format(ROBOT_TCP_HOST, ROBOT_TCP_PORT))
         return True
     except Exception as e:
-        print("Error opening serial port: {}".format(e))
+        _tcp_connected = False
         last_error_message = str(e)
+        print("TCP bridge unreachable: {}".format(e))
         return False
 
+def init_serial():
+    """Alias kept for compatibility — tests TCP bridge instead."""
+    return test_tcp_connection()
+
+# [SERIAL] Previous serial init:
+# def init_serial():
+#     global serial_connection, last_error_message
+#     try:
+#         serial_connection = serial.Serial(
+#             port=SERIAL_PORT,
+#             baudrate=BAUD_RATE,
+#             bytesize=serial.EIGHTBITS,
+#             parity=serial.PARITY_NONE,
+#             stopbits=serial.STOPBITS_ONE,
+#             timeout=1
+#         )
+#         print("Serial port {} opened successfully".format(SERIAL_PORT))
+#         last_error_message = None
+#         return True
+#     except Exception as e:
+#         print("Error opening serial port: {}".format(e))
+#         last_error_message = str(e)
+#         return False
+
 def send_command(command_code):
-    """Send command byte to robot via serial"""
-    global serial_connection
-    global last_error_message
-    global last_command
-    global last_send_time
-    global busy_until
-    with serial_lock:
-        if not ensure_serial_open():
-            print("Serial connection not open")
-            last_error_message = "Serial connection not open"
-            return False
+    """Send command byte to robot via Socat TCP bridge."""
+    print(f"[TCP] Sending {command_code} to {ROBOT_TCP_HOST}:{ROBOT_TCP_PORT}")
+    global last_error_message, last_command, last_send_time, busy_until, _tcp_connected
+    with tcp_lock:
         try:
-            serial_connection.write(bytes([command_code]))
-            serial_connection.flush()
-            print("Sent command code: {}".format(command_code))
+            s = socket.create_connection((ROBOT_TCP_HOST, ROBOT_TCP_PORT), timeout=ROBOT_TCP_TIMEOUT)
+            s.sendall(bytes([command_code]))
+            s.close()
+            print("Sent command code: {} to {}:{}".format(command_code, ROBOT_TCP_HOST, ROBOT_TCP_PORT))
             last_command = command_code
             last_send_time = time.time()
             busy_until = last_send_time + ROBOT_BUSY_SEC
             last_error_message = None
+            _tcp_connected = True
             return True
+        except Exception as e:
+            print("TCP send error: {}".format(e))
+            last_error_message = str(e)
+            _tcp_connected = False
+            return False
+
+# [SERIAL] Previous serial send:
+# def send_command(command_code):
+#     global serial_connection, last_error_message, last_command, last_send_time, busy_until
+#     with serial_lock:
+#         if not ensure_serial_open():
+#             last_error_message = "Serial connection not open"
+#             return False
+#         try:
+#             serial_connection.write(bytes([command_code]))
+#             serial_connection.flush()
+#             last_command = command_code
+#             last_send_time = time.time()
+#             busy_until = last_send_time + ROBOT_BUSY_SEC
+#             last_error_message = None
+#             return True
+#         except Exception as e:
+#             last_error_message = str(e)
+#             return False
         except Exception as e:
             print("Error sending command: {}".format(e))
             last_error_message = str(e)
@@ -258,10 +302,10 @@ def send_command(command_code):
 
 @app.before_request
 def setup_serial_once():
-    """Initialize serial port once in a Flask-version-compatible way."""
+    """Test TCP bridge reachability once on first request."""
     global serial_setup_done
     if not serial_setup_done:
-        ensure_serial_open()
+        test_tcp_connection()  # [SERIAL] was: ensure_serial_open()
         serial_setup_done = True
 
 @app.before_request
@@ -454,14 +498,24 @@ def demo_robot_bridge():
     enabled = bool(data.get('enabled'))
     return jsonify(demo_engine.set_robot_bridge(enabled))
 
+
+@app.route('/api/demo/preset_mode', methods=['POST'])
+@login_required_api
+def demo_preset_mode():
+    """Enable or disable the preset forward/bow demo loop."""
+    data = request.get_json() or {}
+    enabled = bool(data.get('enabled'))
+    return jsonify(demo_engine.set_preset_mode(enabled))
+
 @app.route('/api/status')
 @login_required_api
 def get_status():
     """Return system status"""
     remaining_ms = int(max(0, (busy_until - time.time()) * 1000))
     return jsonify({
-        'serial_connected': serial_connection is not None and serial_connection.is_open,
-        'serial_port': SERIAL_PORT,
+        'tcp_connected': _tcp_connected,
+        'robot_host': ROBOT_TCP_HOST,
+        'robot_port': ROBOT_TCP_PORT,
         'baud_rate': BAUD_RATE,
         'last_error': last_error_message,
         'last_command': last_command,
@@ -489,12 +543,8 @@ if __name__ == '__main__':
     print("="*60)
     print("Access locally at: http://localhost:5000")
     print("Access from network at: http://{}:5000".format(local_ip))
+    print("Robot TCP bridge: {}:{}".format(ROBOT_TCP_HOST, ROBOT_TCP_PORT))
     print("="*60 + "\n")
     
     # Run the Flask app
-    try:
-        app.run(host='0.0.0.0', port=5000, debug=False, threaded=True)
-    finally:
-        if serial_connection and serial_connection.is_open:
-            serial_connection.close()
-            print("Serial connection closed")
+    app.run(host='0.0.0.0', port=5000, debug=False, threaded=True)

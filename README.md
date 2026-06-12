@@ -16,6 +16,7 @@ The application now opens with a database-backed login page and, after authentic
 - **Start streaming**: starts the EEG-style demo stream.
 - **Stop streaming**: stops the demo stream.
 - **Activate demo**: selects the mental command mode and starts the stream.
+- **Preset mode**: alternates between forward step and bow commands with a delay.
 - **Eye tracking mode**: shown as the next implementation target.
 
 ### Optional environment variables
@@ -24,6 +25,7 @@ The application now opens with a database-backed login page and, after authentic
 - `SESSION_LIFETIME_HOURS` (default `8`)
 - `SERIAL_PORT` if you want to override the robot connection in code later
 - `DEMO_PACKET_INTERVAL_SEC` (default `3.0`)
+- `DEMO_PRESET_DELAY_SEC` (default matches the demo packet interval)
 - `DEMO_CONFIDENCE_THRESHOLD` (default `0.60`)
 - `DEMO_STREAK_REQUIRED` (default `2`)
 - `DEMO_BRIDGE_SEND_REAL` (default `0`, set `1` to forward stable predictions to robot serial)
@@ -35,6 +37,7 @@ The application now opens with a database-backed login page and, after authentic
 - `POST /api/demo/stop`
 - `POST /api/demo/transition`
 - `POST /api/demo/robot_bridge`
+- `POST /api/demo/preset_mode`
 
 ## Run It
 

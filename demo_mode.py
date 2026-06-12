@@ -21,12 +21,16 @@ class EEGDemoEngine(object):
         self.packet_interval_sec = float(os.getenv("DEMO_PACKET_INTERVAL_SEC", "3.0")) # Slowed down to 3s per epoch to simulate thought
         self.confidence_threshold = float(os.getenv("DEMO_CONFIDENCE_THRESHOLD", "0.60"))
         self.required_streak = int(os.getenv("DEMO_STREAK_REQUIRED", "2"))
+        self.preset_delay_sec = float(os.getenv("DEMO_PRESET_DELAY_SEC", str(self.packet_interval_sec)))
         
         self.vault = SecureSessionVault()
         self.current_session_uuid = None
         self.session_history = []
         
         self.robot_bridge_enabled = False
+        self.preset_mode_enabled = False
+        self.preset_sequence = ("FWD_SHORT_STEP", "BOW")
+        self.preset_sequence_index = 0
         
         # Target mapping in notebook: 1:'FORWARD', 2:'BACKWARD', 3:'LEFT', 4:'RIGHT'
         self.target_names = {1: 'FORWARD', 2: 'BACKWARD', 3: 'LEFT', 4: 'RIGHT'}
@@ -94,6 +98,18 @@ class EEGDemoEngine(object):
         with self._lock:
             self.robot_bridge_enabled = bool(enabled)
             return {"success": True, "enabled": self.robot_bridge_enabled}
+
+    def set_preset_mode(self, enabled):
+        with self._lock:
+            self.preset_mode_enabled = bool(enabled)
+            self.preset_sequence_index = 0
+            self._pending_dispatch_command = None
+            next_command = self.preset_sequence[self.preset_sequence_index] if self.preset_mode_enabled else None
+            return {
+                "success": True,
+                "enabled": self.preset_mode_enabled,
+                "next_command": next_command,
+            }
 
     def start(self):
         """Start or resume generated simulation."""
@@ -235,11 +251,28 @@ class EEGDemoEngine(object):
             
         self._pending_dispatch_command = mapped_command
 
+    def _attempt_preset_dispatch(self):
+        if self.send_robot_command_callback is None:
+            return
+
+        mapped_command = self.preset_sequence[self.preset_sequence_index]
+        self.preset_sequence_index = (self.preset_sequence_index + 1) % len(self.preset_sequence)
+        self._pending_dispatch_command = mapped_command
+        self.last_dispatch = {
+            "sent": False,
+            "command": mapped_command,
+            "message": f"Preset mode queued: {mapped_command}",
+            "timestamp": time.time(),
+        }
+
     def _tick(self):
         self.packet_id += 1
         self.advance_data()
         self._update_streak()
-        self._attempt_dispatch()
+        if self.preset_mode_enabled:
+            self._attempt_preset_dispatch()
+        else:
+            self._attempt_dispatch()
 
     def _run_loop(self):
         while True:
@@ -270,7 +303,8 @@ class EEGDemoEngine(object):
                         "timestamp": time.time()
                     }
                     
-            time.sleep(self.packet_interval_sec)
+            sleep_for = self.preset_delay_sec if self.preset_mode_enabled else self.packet_interval_sec
+            time.sleep(sleep_for)
 
     def snapshot(self):
         with self._lock:
@@ -295,6 +329,9 @@ class EEGDemoEngine(object):
                 "total_predictions": self.total_predictions,
                 "correct_predictions": self.correct_predictions,
                 "robot_bridge_enabled": self.robot_bridge_enabled,
+                "preset_mode_enabled": self.preset_mode_enabled,
+                "preset_next_command": self.preset_sequence[self.preset_sequence_index] if self.preset_mode_enabled else None,
+                "preset_delay_sec": self.preset_delay_sec,
                 "active_subject": subj,
                 "streak": self.current_streak,
                 "required_streak": self.required_streak,

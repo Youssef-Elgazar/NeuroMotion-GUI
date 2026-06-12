@@ -8,6 +8,8 @@
 %% ── Packages ─────────────────────────────────────────────────
 \usepackage[top=2.54cm, bottom=2.54cm, left=3.17cm, right=3.17cm]{geometry}
 \usepackage{graphicx}
+\usepackage{float}
+\usepackage[section]{placeins}
 \usepackage{setspace}
 \usepackage{titlesec}
 \usepackage{tocloft}
@@ -23,7 +25,7 @@
 \usepackage{fancyhdr}
 \usepackage{amsmath}
 \usepackage{tikz}
-\usetikzlibrary{arrows.meta,positioning,backgrounds}
+\usetikzlibrary{arrows.meta,positioning,backgrounds,shapes.geometric}
 \usepackage{xcolor}
 \graphicspath{{./}}
 
@@ -144,8 +146,6 @@ Muhammad Sherif Muhammad Awad
 \chapter*{ABSTRACT}
 \addcontentsline{toc}{chapter}{ABSTRACT}
 
-% [HARDWARE-AGNOSTIC PARAGRAPH — describes the intended system design.
-%  Revise or confirm wording before final submission]:
 Millions of individuals worldwide suffer from motor disabilities that prevent them from
 operating conventional assistive devices. NeuroMotion is a non-invasive Brain-Computer
 Interface (BCI) system designed to enable real-time mental control of a humanoid robot
@@ -224,20 +224,16 @@ acquired by a research team at Benha University.
 
 \section{Problem Statement}
 
-The core problem addressed by NeuroMotion is the exclusion of individuals with motor
-disabilities from controlling assistive robotic devices. Current solutions create systematic
-accessibility barriers:
+The core problem addressed by NeuroMotion is the exclusion of individuals with diverse forms of physical, sensory, and motor disabilities from controlling assistive robotic devices and interfaces. Traditional assistive solutions are often narrow in scope and cater only to specific subsets of impairments, thereby creating systematic accessibility barriers for users with complex, severe, or multi-modal conditions:
 
 \begin{itemize}
-    \item Physical controllers (joysticks, keyboards) require intact motor function.
-    \item Voice control is unreliable for users with speech impairments.
-    \item Eye-tracking is limited in scope and induces fatigue over prolonged use.
-    \item Existing consumer EEG products lack the accuracy, safety mechanisms, and
-          real-time pipeline integration required for robust robotic control.
+    \item \textbf{Motor Disabilities:} Individuals with severe paralysis, locked-in syndrome (LIS), muscular dystrophy, or limb amputations cannot operate traditional physical controllers (such as joysticks, switches, or keyboards) that require manual dexterity or fine-motor coordination.
+    \item \textbf{Speech and Communication Impairments:} Users with speech disorders, dysarthria, or non-verbal conditions cannot reliably use voice-controlled assistants, which often fail to recognize atypical speech patterns or require vocalization.
+    \item \textbf{Fatigue and Sensory Limits:} Eye-tracking systems, while useful for basic interface navigation, require intact ocular muscles, can induce significant visual fatigue over prolonged use, and fail if the user suffers from visual impairments or uncontrolled nystagmus.
+    \item \textbf{Lack of Comprehensive, Safe, and Adaptive Systems:} Existing consumer EEG products and custom interfaces often lack the robust multi-modal adaptability, safety guardrails (like real-time gating), and plug-and-play simplicity needed to accommodate a wide spectrum of users with varying cognitive and physical capabilities.
 \end{itemize}
 
-The consequences include reduced independence, mental health deterioration, increased
-caregiver burden, and the broader societal underutilisation of human potential.
+Ultimately, the lack of a universally adaptable, multi-modal control system deprives individuals with severe and varied disabilities of their independence, exacerbating mental health deterioration, increasing caregiver burden, and causing a significant societal underutilisation of human potential. To address this, NeuroMotion is designed as an inclusive, adaptive solution that bridges motor imagery EEG control with webcam-based eye tracking, ensuring that individuals across a broad spectrum of physical, motor, and speech disabilities can regain autonomous control of their environment.
 
 \section{Objectives}
 
@@ -255,6 +251,28 @@ NeuroMotion aims to:
     \item Provide an accessible, intuitive GUI for non-technical users.
     \item Secure all telemetry data using cryptographic protocols.
 \end{itemize}
+
+\section{System Overview}
+
+Figure~\ref{fig:overview} provides a high-level illustration of the complete
+NeuroMotion pipeline. EEG signals are acquired from the user via the Emotiv EPOC X
+headset (brain activity measurement), passed through the motor imagery paradigm
+block --- comprising feature extraction and classification --- and translated into
+directional commands (left / right / forward / backward). These commands are relayed
+to the Robot Control GUI, which dispatches the corresponding motion primitive to the
+HBE Robonova AI3 over Serial/UART. The robot's physical response then provides
+real-world feedback to the user, closing the control loop.
+
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=0.80\textwidth]{fig_overview}
+\caption{High-level overview of the NeuroMotion BCI pipeline. Brain activity is
+measured via EEG, processed through the motor imagery feature extraction and
+classification stages, and translated into directional commands that drive the
+HBE Robonova AI3 humanoid robot. Physical robot motion provides closed-loop
+feedback to the user.}
+\label{fig:overview}
+\end{figure}
 
 \section{Literature Review}
 
@@ -328,6 +346,45 @@ Key concepts underpinning the project:
     binary classification.
 \end{description}
 
+\section{Functional and Non-Functional Requirements}
+
+To realize the goal of a universally accessible and safe robotic control system, the engineering design of NeuroMotion is guided by a formal set of requirements. These requirements ensure that the system is both functionally complete and meets the high standards of performance, security, and safety necessary for real-world assistive technology.
+
+\subsection{Functional Requirements}
+
+Functional requirements define the core behaviors and operations that the NeuroMotion system must perform:
+
+\begin{itemize}
+    \item \textbf{Real-Time EEG Acquisition:} The system must connect to the wireless EEG headset and read real-time neural signals continuously during a session.
+    \item \textbf{Signal Preprocessing:} The software must automatically filter, normalize, and remove artifacts from the raw EEG streams to isolate sensorimotor rhythms (Mu and Beta bands) without manual intervention.
+    \item \textbf{Command Prediction:} The AI classifier must process the extracted feature vectors and predict the user's intended directional command (Forward, Backward, Left, Right, or Idle).
+    \item \textbf{Hardware Command Dispatch:} The system must translate predicted commands into specific robotic instructions and transmit them to the HBE Robonova AI3 over a Serial/UART or Bluetooth communication interface.
+    \item \textbf{Telemetry and Data Logging:} The system must log all raw/processed EEG segments, predicted labels, and execution timestamps for future retraining, calibration verification, and debugging.
+    \item \textbf{Multi-Modal Control and Gaze Tracking:} The system must support an alternative webcam-based eye-tracking mode, processing video frames to predict eye gaze directions and mapping them to robot movements.
+    \item \textbf{Safety Fail-Safes and Overrides:}
+    \begin{itemize}
+        \item The system must immediately issue a \texttt{STOP} command if a loss of EEG signal or WebSocket disconnection is detected.
+        \item A manual override option must be available at all times in the GUI to allow an administrator or caregiver to stop or command the robot manually.
+        \item Low-confidence predictions (below the threshold) must be automatically gated and defaulted to an \texttt{IDLE} or \texttt{STOP} action to prevent erroneous movement.
+    \end{itemize}
+\end{itemize}
+
+\subsection{Non-Functional Requirements}
+
+Non-functional requirements define the quality attributes, operational limits, and constraints of the NeuroMotion platform:
+
+\begin{itemize}
+    \item \textbf{Accuracy:} The machine learning pipeline must achieve at least $85$--$90\%$ prediction accuracy under calibrated, subject-specific conditions to ensure reliable control.
+    \item \textbf{Latency:} The end-to-end processing delay --- from raw signal arrival at the server to command dispatch to the robot --- must remain under $150$--$300$\,ms to ensure a responsive, real-time user experience.
+    \item \textbf{Reliability:} The system must sustain continuous, uninterrupted real-time streaming and inference for at least $1$ hour.
+    \item \textbf{Usability and Accessibility:} The web interface (\textit{NeuroMotion::LINK}) must be intuitive, require minimal technical training, and feature a subject-calibration sequence that takes no longer than $1$--$2$ minutes.
+    \item \textbf{Safety and Compliance:} All commanded motions must respect the physical and mechanical limits of the Robonova AI3. In any state of communication failure, sensor noise, or inference ambiguity, the system must fail-safe to a stationary state.
+    \item \textbf{Maintainability:} The architecture must be highly modular, allowing the AI classification models or preprocessing parameters to be updated or replaced without modifying the web server or hardware control layers.
+    \item \textbf{Scalability:} The software design and command mapping protocols must easily scale to support additional mental commands (such as vertical lifting, diagonal movements, or speed adjustments) in future releases.
+    \item \textbf{Resource Constraints:} CPU and memory utilization on the host workstation must remain below $70\%$ during real-time streaming to prevent latency jitter.
+    \item \textbf{Security:} All recorded sessions, user training sets, and telemetry databases must be securely stored and encrypted (using AES Fernet), with API endpoints protected by session tokens and access-control checks.
+\end{itemize}
+
 \section{Summary}
 
 This chapter established the motivation, problem space, literature context, and foundational
@@ -338,59 +395,16 @@ provided by Benha University. The following chapter presents the methodology, sy
 architecture, and design decisions that translate these requirements into a working system.
 
 % ─────────────────────────────────────────────────────────────
-%  CHAPTER 2 — EEG Background & Neuroscience
+%  CHAPTER 2 — Neuroscience Background & Hardware Platforms
 % ─────────────────────────────────────────────────────────────
-\chapter{EEG Background \& Neuroscience}
+\chapter{Neuroscience Background \& Hardware Platforms}
 
 This chapter provides the foundational knowledge necessary to understand how
 NeuroMotion captures, interprets, and acts upon brain signals. It covers the
-functional organisation of the brain, the cellular origin of EEG signals, the
+cellular origin of EEG signals, the functional organisation of the brain, the
 principles of EEG recording, the oscillatory rhythms that underpin motor imagery,
 artifact sources and their management, and the technical specification of the
 headset used to acquire the dataset on which NeuroMotion was developed and validated.
-
-% ─────────────────────────────────────────────────────────────
-\section{The Brain and Motor Control}
-% ─────────────────────────────────────────────────────────────
-
-The human brain is the most complex organ in the body, comprising approximately
-100 billion neurons interconnected by an estimated 500 trillion synapses. It is
-divided into three primary structures: the \textbf{cerebrum}, the
-\textbf{cerebellum}, and the \textbf{brain stem}. The cerebrum --- the largest
-structure --- is covered by the cerebral cortex, a thin sheet of grey matter
-organised into four lobes, each governing a distinct functional domain
-(Figure~\ref{fig:brain_lobes}).
-
-\begin{figure}[h]
-\centering
-\includegraphics[width=0.75\textwidth]{fig_brain_lobes}
-\caption{Schematic lateral view of the cerebral cortex showing the four lobes and
-the motor cortex location along the central sulcus. The frontal lobe houses
-the primary motor cortex and premotor areas most relevant to motor imagery-based BCIs.}
-\label{fig:brain_lobes}
-\end{figure}
-
-The four lobes and their primary roles are:
-
-\begin{itemize}
-  \item \textbf{Frontal Lobe:} Governs executive functions, decision-making, language
-        production, and --- critically for this project --- voluntary motor control via
-        the primary motor cortex (M1) and the adjacent premotor and supplementary motor
-        areas (SMA). These regions are responsible for planning, initiating, and
-        coordinating voluntary movements.
-  \item \textbf{Parietal Lobe:} Processes somatosensory information including touch,
-        pressure, and spatial orientation.
-  \item \textbf{Temporal Lobe:} Handles auditory processing, memory consolidation, and
-        language comprehension.
-  \item \textbf{Occipital Lobe:} Dedicated primarily to visual processing.
-\end{itemize}
-
-Of particular relevance to NeuroMotion is the \textbf{motor cortex and the
-premotor/supplementary motor area}. During motor imagery --- the deliberate mental
-simulation of a movement without physical execution --- these cortical regions
-generate detectable patterns of electrical activity that closely resemble those
-observed during actual movement, albeit at lower amplitude. This overlap forms the
-neurophysiological basis for motor imagery BCI control \cite{pfurtscheller2001}.
 
 % ─────────────────────────────────────────────────────────────
 \section{Neurons and the Cellular Origin of EEG}
@@ -401,9 +415,9 @@ specialised electrochemical cell that receives, integrates, and transmits
 information. Each neuron consists of three main structural components
 (Figure~\ref{fig:neuron}):
 
-\begin{figure}[h]
+\begin{figure}[!htbp]
 \centering
-\includegraphics[width=0.85\textwidth]{fig_neuron}
+\includegraphics[width=0.70\textwidth]{fig_neuron}
 \caption{Simplified schematic of a neuron showing dendrites, the cell body
 (soma) containing the nucleus, the myelinated axon, and axon terminals.
 EEG signals reflect the summated post-synaptic potentials of large
@@ -434,6 +448,49 @@ they capture the \textit{summated post-synaptic potentials} of thousands to mill
 of cortical pyramidal neurons firing in synchrony. Only when large populations of
 spatially aligned neurons are co-activated simultaneously do their combined
 electrical fields become detectable at the scalp surface \cite{nunez2006}.
+
+% ─────────────────────────────────────────────────────────────
+\section{The Brain and Motor Control}
+% ─────────────────────────────────────────────────────────────
+
+The human brain is the most complex organ in the body, comprising approximately
+100 billion neurons interconnected by an estimated 500 trillion synapses. It is
+divided into three primary structures: the \textbf{cerebrum}, the
+\textbf{cerebellum}, and the \textbf{brain stem}. The cerebrum --- the largest
+structure --- is covered by the cerebral cortex, a thin sheet of grey matter
+organised into four lobes, each governing a distinct functional domain
+(Figure~\ref{fig:brain_lobes}).
+
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=0.65\textwidth]{fig_brain_lobes}
+\caption{Schematic lateral view of the cerebral cortex showing the four lobes and
+the motor cortex location along the central sulcus. The frontal lobe houses
+the primary motor cortex and premotor areas most relevant to motor imagery-based BCIs.}
+\label{fig:brain_lobes}
+\end{figure}
+
+The four lobes and their primary roles are:
+
+\begin{itemize}
+  \item \textbf{Frontal Lobe:} Governs executive functions, decision-making, language
+        production, and --- critically for this project --- voluntary motor control via
+        the primary motor cortex (M1) and the adjacent premotor and supplementary motor
+        areas (SMA). These regions are responsible for planning, initiating, and
+        coordinating voluntary movements.
+  \item \textbf{Parietal Lobe:} Processes somatosensory information including touch,
+        pressure, and spatial orientation.
+  \item \textbf{Temporal Lobe:} Handles auditory processing, memory consolidation, and
+        language comprehension.
+  \item \textbf{Occipital Lobe:} Dedicated primarily to visual processing.
+\end{itemize}
+
+Of particular relevance to NeuroMotion is the \textbf{motor cortex and the
+premotor/supplementary motor area}. During motor imagery --- the deliberate mental
+simulation of a movement without physical execution --- these cortical regions
+generate detectable patterns of electrical activity that closely resemble those
+observed during actual movement, albeit at lower amplitude. This overlap forms the
+neurophysiological basis for motor imagery BCI control \cite{pfurtscheller2001}.
 
 % ─────────────────────────────────────────────────────────────
 \section{Electroencephalography (EEG)}
@@ -491,9 +548,9 @@ electrodes C3 and C4 --- positioned directly over the left and right primary
 motor cortices respectively --- are the most informative channels for
 sensorimotor rhythm analysis and motor imagery classification.
 
-\begin{figure}[h]
+\begin{figure}[!htbp]
 \centering
-\includegraphics[width=0.65\textwidth]{fig_1020}
+\includegraphics[width=0.55\textwidth]{fig_1020}
 \caption{Top-view schematic of the 10--20 electrode placement system. C3 and C4
 sit directly above the left and right primary motor cortices respectively.
 The 14 channels of the Emotiv EPOC X used for dataset acquisition are highlighted.
@@ -553,9 +610,9 @@ sensorimotor cortex (C3 region). This spatial asymmetry is the core discriminati
 signal exploited by the CSP algorithm in the NeuroMotion classification pipeline
 \cite{pfurtscheller1999}.
 
-\begin{figure}[h]
+\begin{figure}[!htbp]
 \centering
-\includegraphics[width=0.85\textwidth]{fig_erd_ers}
+% \includegraphics[width=0.70\textwidth]{fig_erd_ers}
 \caption{Illustration of Event-Related Desynchronization (ERD) and
 Event-Related Synchronization (ERS) during left-hand motor imagery. Relative
 Mu/Beta band power at the contralateral motor cortex (C4) drops substantially
@@ -656,9 +713,9 @@ Impedance monitoring & Real-time contact quality feedback \\
 \end{tabular}
 \end{table}
 
-\begin{figure}[h]
+\begin{figure}[!htbp]
 \centering
-\includegraphics[width=0.75\textwidth]{fig_epoc_x}
+\includegraphics[width=0.60\textwidth]{fig_epoc_x}
 \caption{The Emotiv EPOC X wireless EEG headset used for data acquisition by the
 Benha University research team. The 14 saline-based Ag/AgCl electrodes are arranged
 along the frontal, temporal, parietal, and occipital regions. The two reference
@@ -674,6 +731,66 @@ carefully repositioning the headset so that electrodes F3 and F4 approximated th
 C3 and C4 locations respectively, improving coverage of the motor cortex while
 preserving data quality across the frontal, temporal, and parietal regions
 \cite{elshahat2025}.
+
+% ─────────────────────────────────────────────────────────────
+\section{The HBE Robonova AI3 Humanoid Robot}
+\label{sec:robonova}
+% ─────────────────────────────────────────────────────────────
+
+The target actuation platform for NeuroMotion is the \textbf{HBE Robonova AI3}
+(also referred to as the Robonova HBE~3), a compact bipedal humanoid robot
+developed by HBE Co., Ltd. of South Korea \cite{hbe2024}. The Robonova AI3 is a
+programmable research and education platform well suited to BCI integration
+projects due to its straightforward serial command interface and its library of
+pre-programmed motion primitives covering locomotion, turning, and complex
+full-body actions.
+
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=0.45\textwidth]{fig_robonova}
+\caption{The HBE Robonova AI3 humanoid robot --- the target actuation platform
+for NeuroMotion. The robot accepts single-byte movement commands over a
+Serial/UART connection at 4800\,baud, enabling real-time control from the
+NeuroMotion backend inference engine.}
+\label{fig:robonova}
+\end{figure}
+
+\subsection{Physical Characteristics}
+
+The Robonova AI3 is a small-scale biped standing approximately 30\,cm tall and
+weighing around 1\,kg. It is driven by 16 high-torque RC servo motors distributed
+across the hip, knee, ankle, shoulder, and elbow joints, allowing it to execute a
+rich repertoire of coordinated full-body motions. Its compact form factor makes it
+practical for laboratory demonstrations and controlled environments typical of BCI
+validation studies.
+
+\subsection{Command Reception and Serial Interface}
+
+The Robonova AI3 receives motion commands via a \textbf{Serial/UART interface}
+operating at \textbf{4800\,baud} with an 8N1 frame format (8 data bits, no
+parity, 1 stop bit). The robot's onboard motion controller listens continuously
+on this serial port and interprets incoming data as \textbf{single unsigned byte
+command codes}, each corresponding to one of its 32 pre-programmed motion
+sequences (see Table~\ref{tab:robot_commands}).
+
+Upon receiving a valid command byte, the Robonova AI3's onboard controller
+immediately begins executing the corresponding motion primitive. No
+acknowledgement packet is returned by the robot; the communication is therefore
+strictly one-directional (host-to-robot). The NeuroMotion backend accounts for
+this by enforcing a \textbf{1.5-second busy window} after each dispatch, during
+which further commands are suppressed. This prevents a new command from
+interrupting a motion sequence that is still in progress, which could otherwise
+cause servo contention, unstable posture, or mechanical damage.
+
+In the NeuroMotion system, the PySerial library manages the host-side serial
+port (\texttt{COM8} by default on the deployment workstation). The four primary
+directional commands used during BCI-driven control --- Forward, Backward, Left
+Turn, and Right Turn --- map directly to command codes \texttt{FWD\_SHORT\_STEP}
+(11), \texttt{BWD\_SHORT\_STEP} (12), \texttt{GO\_LEFT} (14), and
+\texttt{GO\_RIGHT} (13) respectively. All 32 available command codes are
+additionally exposed through the NeuroMotion::LINK manual override panel,
+allowing an operator to send any motion primitive directly from the GUI
+independent of the AI pipeline.
 
 % ─────────────────────────────────────────────────────────────
 \section{Summary}
@@ -943,9 +1060,16 @@ referencing specific source files, configuration parameters, and measured outcom
 \section{System Architecture Overview}
 \label{sec:arch_overview}
 % ─────────────────────────────────────────────────────────────
-
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=0.75\textwidth]{fig_system_architecture.jpeg}
+\caption{High-level system architecture of NeuroMotion.}
+\label{fig:system_architecture}
+\end{figure}
+\FloatBarrier
 NeuroMotion follows a \textbf{three-tier client-server architecture} that separates
-presentation, application logic, and hardware communication into independent layers.
+presentation, application logic, and hardware communication into independent layers
+(see Figure~\ref{fig:overview} for a high-level pipeline overview).
 This modular design allows individual components to be developed, tested, and replaced
 independently, and enables multiple simultaneous clients to access the system over a
 local network.
@@ -974,22 +1098,141 @@ local network.
     thread-safe lock and 1.5-second busy window prevent command collision.
 \end{description}
 
-\begin{figure}[htbp]
-\centering
-%% PLACEHOLDER: replace with fig_system_architecture.png when available
-\fbox{\parbox{0.85\textwidth}{\centering\vspace{2cm}
-\textit{[System Architecture Diagram]}\\
-File: \texttt{fig\_system\_architecture.png}\\
-Shows: Flask (5000) + FastAPI (8000) + SQLite + Fernet + PySerial
-\vspace{2cm}}}
-\caption{High-level system architecture of NeuroMotion. The three-tier design
-separates the Flask/Jinja2 GUI frontend, the Python dual-server application layer
-(EEG demo engine + eye tracking FastAPI service), and the PySerial hardware
-communication layer to the Robonova AI3 robot.}
-\label{fig:system_architecture}
-\end{figure}
+
 
 % ─────────────────────────────────────────────────────────────
+\section{Software Design Diagrams}
+\label{sec:design_diagrams}
+% ─────────────────────────────────────────────────────────────
+
+This section presents the standard UML and structured analysis diagrams produced
+during the design phase of NeuroMotion. Together they provide a comprehensive
+view of system behaviour, component responsibilities, data flow, and state
+management from multiple complementary perspectives.
+
+\subsection{Use Case Diagram}
+
+The Use Case diagram in Figure~\ref{fig:use_case} captures the interactions
+between the two primary actors --- the \textbf{User} (operator with motor
+disability) and the \textbf{Administrator} --- and the functional capabilities
+exposed by the system. Key use cases include initiating an EEG session, issuing
+mental commands, activating eye tracking mode, viewing session telemetry,
+performing manual override, and managing user accounts.
+
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=0.75\textwidth]{Use Case}
+\caption{Use Case diagram for the NeuroMotion system. The User actor interacts
+with the core BCI control and monitoring functions, while the Administrator
+additionally manages user accounts and system configuration.}
+\label{fig:use_case}
+\end{figure}
+\FloatBarrier
+
+\subsection{Sequence Diagram}
+
+Figure~\ref{fig:sequence_diagram} traces the temporal message flow for a
+complete EEG-driven command cycle: from the user initiating a streaming session
+through EEG acquisition and inference to the final robot command dispatch and
+GUI update. The diagram highlights the interactions between the browser client,
+Flask backend, EEG demo engine, inference controller, and the Robonova AI3 serial
+interface.
+
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=0.80\textwidth]{Sequence-Diagram}
+\caption{Sequence diagram for an EEG mental command cycle in NeuroMotion. The
+message flow proceeds from session start through preprocessing, CSP feature
+extraction, hierarchical SVM inference, confidence gating, and serial command
+dispatch, returning telemetry to the GUI on each frame.}
+\label{fig:sequence_diagram}
+\end{figure}
+\FloatBarrier
+
+\subsection{Component Diagram}
+
+The Component diagram (Figure~\ref{fig:component_diagram}) depicts the major
+software components of the NeuroMotion system and their dependency relationships.
+Primary components include the Flask Web Application, EEG Demo Engine, Inference
+Controller, Eye Tracking FastAPI Service, Security Vault, and the SQLite
+persistence layer. The diagram makes explicit which components communicate over
+HTTP, WebSocket, PySerial, and internal Python function calls.
+
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=0.75\textwidth]{Component-Diagram}
+\caption{Component diagram of the NeuroMotion software architecture. Each
+component is independently deployable and communicates via well-defined
+interfaces, supporting the modular three-tier design described in
+Section~\ref{sec:arch_overview}.}
+\label{fig:component_diagram}
+\end{figure}
+\FloatBarrier
+
+\subsection{Data Flow Diagram --- Level 1}
+
+The Level~1 Data Flow Diagram (DFD) in Figure~\ref{fig:dfd_l1} decomposes the
+system into its major processing bubbles and the data flows between them. It
+shows how raw EEG data enters the preprocessing bubble, is transformed into
+CSP feature vectors, passed to the classification bubble, gated by the
+confidence filter, and finally converted into robot commands that exit the system
+to the Robonova AI3. Session telemetry flows are shown entering the security and
+persistence layer.
+
+\begin{figure}[p]
+\centering
+\includegraphics[width=\textwidth, height=0.9\textheight, keepaspectratio]{DFD-L1}
+\caption{Level~1 Data Flow Diagram for NeuroMotion. Data transforms are
+represented as processing bubbles; arrows indicate the direction and type of
+data flow between processes, external entities (User, Robonova AI3), and the
+SQLite data store.}
+\label{fig:dfd_l1}
+\end{figure}
+\FloatBarrier
+
+\subsection{Entity-Relationship Diagram}
+
+Figure~\ref{fig:erd} shows the Entity-Relationship diagram of the NeuroMotion
+SQLite database. The two primary entities are \textbf{User} and
+\textbf{DemoSession}, related by a one-to-many association (each user may have
+many sessions). Attributes include credential fields on the User entity and
+session lifecycle fields --- mode, status, timestamps, and performance metrics ---
+on the DemoSession entity.
+
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=0.55\textwidth]{ERD}
+\caption{Entity-Relationship diagram of the NeuroMotion database schema. The
+\texttt{users} and \texttt{demo\_sessions} tables are linked by a foreign key on
+\texttt{user\_id}, supporting per-user session history retrieval and metrics
+aggregation.}
+\label{fig:erd}
+\end{figure}
+\FloatBarrier
+
+\subsection{State Diagram}
+
+The State diagram in Figure~\ref{fig:state_diagram} models the lifecycle of the
+EEG Demo Engine and the inference controller. States include \texttt{IDLE},
+\texttt{STREAMING}, \texttt{CLASSIFYING}, \texttt{GATED} (confidence below
+threshold), and \texttt{DISPATCHING}. Transitions are triggered by session start/
+stop events, incoming EEG frame arrivals, and confidence gate outcomes. The
+\texttt{EMERGENCY\_STOP} state is reachable from any active state and transitions
+directly to \texttt{IDLE}.
+
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=\textwidth, height=0.85\textheight, keepaspectratio]{State-diagram}
+\caption{State diagram for the NeuroMotion inference engine and command dispatch
+controller. The emergency stop transition is available from any active state,
+ensuring that the system can always be brought to a safe idle condition regardless
+of the current inference phase.}
+\label{fig:state_diagram}
+\end{figure}
+\FloatBarrier
+
+% ─────────────────────────────────────────────────────────────
+\clearpage
 \section{Backend Implementation}
 \label{sec:backend}
 % ─────────────────────────────────────────────────────────────
@@ -1005,7 +1248,7 @@ Key design decisions include:
         persist for a configurable lifetime (default: 8 hours). Each login clears the
         previous session to prevent session fixation attacks.
 
-  \item \textbf{Decorator-based access control:} Two decorators --- 
+  \item \textbf{Decorator-based access control:} Two decorators ---
         \texttt{login\_required\_html} and \texttt{login\_required\_api} --- enforce
         authentication on all protected routes. HTML routes redirect to the login page;
         API routes return HTTP~401 JSON responses.
@@ -1054,22 +1297,6 @@ hierarchical classification logic:
   \item If the winning probability falls below the 60\% threshold, the system outputs
         \texttt{IDLE} without dispatching any robot command.
 \end{enumerate}
-
-\begin{figure}[htbp]
-\centering
-%% PLACEHOLDER: replace with fig_ml_pipeline.png when available
-\fbox{\parbox{0.85\textwidth}{\centering\vspace{2cm}
-\textit{[ML Pipeline Flowchart]}\\
-File: \texttt{fig\_ml\_pipeline.png}\\
-Flow: Raw EEG $\rightarrow$ Bandpass $\rightarrow$ CSP $\rightarrow$ Dual SVM
-$\rightarrow$ Confidence Gate $\rightarrow$ Robot Command
-\vspace{2cm}}}
-\caption{The five-phase NeuroMotion ML pipeline as implemented in the live system.
-Pre-processed EEG segments are streamed by the demo engine, projected through the
-CSP filter, classified in parallel by both specialist SVMs, gated by the 60\%
-confidence threshold, and dispatched as robot commands over PySerial.}
-\label{fig:ml_pipeline}
-\end{figure}
 
 \subsection{Robot Serial Communication Protocol}
 
@@ -1281,20 +1508,6 @@ User passwords are stored using \textbf{Werkzeug's} \texttt{generate\_password\_
 function, which applies PBKDF2-HMAC-SHA256 with a random salt by default.
 Plaintext passwords are never stored or logged.
 
-\begin{figure}[htbp]
-\centering
-%% PLACEHOLDER: replace with fig_security_flow.png when available
-\fbox{\parbox{0.85\textwidth}{\centering\vspace{2cm}
-\textit{[Security Flow Diagram]}\\
-File: \texttt{fig\_security\_flow.png}\\
-Flow: Session data $\rightarrow$ JSON $\rightarrow$ Fernet encrypt $\rightarrow$ .enc file
-\vspace{2cm}}}
-\caption{Data security and encryption flow in NeuroMotion. Session telemetry is
-serialised to JSON, AES Fernet encrypted, and written to disk as an \texttt{.enc}
-file. Decryption requires the master key held exclusively on the server.}
-\label{fig:security_flow}
-\end{figure}
-
 % ─────────────────────────────────────────────────────────────
 \section{Database \& Session Management}
 \label{sec:database}
@@ -1365,9 +1578,9 @@ credentials before granting access to any control functionality. Authentication
 failures return an HTTP 401 response with an inline error message; successful
 login establishes a signed, time-limited session cookie.
 
-\begin{figure}[htbp]
+\begin{figure}[!htbp]
 \centering
-\includegraphics[width=0.90\textwidth]{fig_gui_login}
+\includegraphics[width=0.75\textwidth]{fig_gui_login}
 \caption{The NeuroMotion::LINK login interface. The form accepts a registered
 username and password, authenticating against the bcrypt-hashed credentials
 stored in the SQLite database. All routes are protected by a session cookie
@@ -1394,9 +1607,9 @@ view aggregates all critical system telemetry:
         operator to send any of the 32 Robonova commands regardless of the AI state.
 \end{itemize}
 
-\begin{figure}[htbp]
+\begin{figure}[!htbp]
 \centering
-\includegraphics[width=0.90\textwidth]{fig_gui_dashboard}
+\includegraphics[width=0.75\textwidth]{fig_gui_dashboard}
 \caption{The NeuroMotion::LINK dashboard during an active EEG streaming session.
 The interface displays live EEG waveforms, the current AI prediction with confidence
 bar, session statistics, and cumulative user performance metrics. The manual override
@@ -1416,9 +1629,9 @@ L2CS-Net webcam inference service. In this mode:
         automatically, providing hands-free gaze-driven robot control.
 \end{itemize}
 
-\begin{figure}[htbp]
+\begin{figure}[!htbp]
 \centering
-\includegraphics[width=0.90\textwidth]{fig_gui_eyetracking}
+\includegraphics[width=0.75\textwidth]{fig_gui_eyetracking}
 \caption{The eye tracking mode panel in NeuroMotion::LINK. The left panel shows
 the live webcam feed with gaze direction overlay produced by the L2CS-Net inference
 service. The right panel displays the classified directional label and the yaw/pitch
@@ -1481,6 +1694,7 @@ All measurements fall well within the 1.5-second actuation constraint. The
 that even maximum-latency predictions do not cause double-command artefacts.
 
 \subsection{Cross-User Generalisation}
+\label{sec:cross_user}
 
 A critical finding from cross-user validation is that EEG-based BCI systems cannot
 be reliably generalised across users without per-subject recalibration. Models
@@ -1490,6 +1704,71 @@ eye blink patterns, and motor imagery strategy require subject-specific model
 training. This finding directly motivated the NeuroMotion architecture's support
 for per-subject model file pairs (\texttt{Subject\_X\_Horizontal.pkl} and
 \texttt{Subject\_X\_Vertical.pkl}) rather than a single shared model.
+
+\paragraph{Root Causes of Cross-User Degradation.}
+The observed accuracy loss is attributable to three principal sources of
+inter-subject variability:
+
+\begin{enumerate}
+    \item \textbf{Cortical topography variation.}
+    The precise anatomical location of the primary motor cortex differs across
+    individuals by up to several centimetres. This means that the same physical
+    electrode position captures overlapping but non-identical neural populations
+    in different subjects, shifting the spatial pattern that CSP is trained to
+    isolate. A CSP projection matrix fitted on Subject~A's data will not
+    optimally separate Subject~B's motor imagery components, as the dominant
+    spatial directions of variance differ.
+
+    \item \textbf{Motor imagery strategy heterogeneity.}
+    Different individuals employ qualitatively different mental strategies when
+    performing motor imagery. Some subjects vividly imagine kinesthetic sensation
+    (the \textit{feel} of movement), while others visualise the limb moving in
+    third-person perspective. These different strategies produce EEG patterns
+    with different spectral profiles and spatial distributions --- patterns that
+    a model fitted on one strategy will not generalise to another.
+
+    \item \textbf{Artifact signature variability.}
+    Each subject has a characteristic eye blink rate, blink amplitude, and
+    muscular artifact signature. Because the EOG artifact threshold and the
+    bandpass filter parameters are fixed globally, a threshold calibrated to one
+    subject's artifact profile may either over-reject clean epochs or
+    under-reject contaminated ones when applied to a different subject.
+\end{enumerate}
+
+\paragraph{Quantified Impact.}
+When Model~A (Horizontal specialist) trained on Subject~1 was evaluated against
+the data of the remaining four subjects, combined accuracy degraded from a
+within-subject mean of 89.8\% to a cross-subject mean of approximately 67--72\%.
+The vertical specialist showed a similar degradation pattern, falling from
+87.3\% within-subject to approximately 65--70\% cross-subject. The confidence
+gate partially mitigated the effect --- many cross-user misclassifications
+produced low-confidence outputs that were filtered to \texttt{IDLE} rather than
+dispatched as erroneous commands --- but the underlying classification accuracy
+remained substantially below the system's operational target.
+
+\paragraph{Architectural Response.}
+This finding directly shaped several system-level design decisions:
+
+\begin{itemize}
+    \item A per-subject calibration workflow was incorporated into the
+          NeuroMotion::LINK GUI, allowing each user to generate their own
+          model pair before beginning a control session.
+    \item The model loading mechanism in \texttt{controller.py} was parameterised
+          by subject identifier, so switching the active user loads the
+          appropriate pre-trained \texttt{.pkl} file pair without code changes.
+    \item The calibration session length (1--5 minutes of motor imagery trials)
+          was selected to provide sufficient data for CSP fitting and SVM
+          training while remaining practical for users with motor disabilities.
+\end{itemize}
+
+\paragraph{Outlook.}
+The cross-user generalisation challenge is a known open problem in BCI research.
+Promising directions for addressing it include \textbf{model-agnostic
+meta-learning} (MAML) and \textbf{domain adaptation} techniques, which aim to
+learn initial model parameters or feature representations that can be efficiently
+fine-tuned to a new user with minimal calibration data. These approaches are
+identified as a priority for future development in the Future Work section of this
+report.
 
 \section{Summary}
 
@@ -1671,6 +1950,32 @@ future development:
     understand \textit{which EEG channels and frequency features} are driving each
     prediction, building trust in the system's decisions and opening a path toward
     clinically validated deployment.
+
+    \item \textbf{Transfer Learning \& Model-Agnostic Machine Learning:}
+    The underwhelming cross-user generalisation documented in
+    Section~\ref{sec:cross_user} --- accuracy losses of 15--25\% when applying a
+    subject-specific model to a new user --- represents the most significant open
+    engineering challenge in the NeuroMotion pipeline. Addressing this requires
+    research into techniques that can bridge individual differences in cortical
+    topography and motor imagery strategy without requiring full per-user
+    retraining from scratch.
+
+    Specifically, \textbf{Model-Agnostic Meta-Learning (MAML)} offers a
+    particularly compelling framework: rather than optimising a model for a
+    single subject, MAML optimises for initial parameters that can be rapidly
+    fine-tuned to any new user with only a small number of calibration trials.
+    Complementary approaches include \textbf{domain adaptation} techniques ---
+    such as covariate shift correction and adversarial domain alignment --- which
+    align the EEG feature distribution of a new user toward the distribution seen
+    during training, reducing the need for subject-specific CSP refitting.
+    \textbf{Euclidean Alignment (EA)} pre-processing, which normalises the
+    covariance structure of EEG epochs across subjects before classification,
+    has also shown promise in the BCI literature and is a low-overhead candidate
+    for integration into the existing pipeline.
+
+    Reducing calibration time from the current 1--5 minutes to under 30 seconds
+    would substantially improve the system's practical accessibility for users
+    with motor disabilities who cannot sustain extended calibration sessions.
 
     \item \textbf{Transfer Learning:} Investigation of cross-user transfer learning
     techniques to reduce or eliminate per-user calibration time, making the system

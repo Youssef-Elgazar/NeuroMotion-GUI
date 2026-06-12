@@ -1,12 +1,24 @@
+# ── NeuroMotion-GUI — Unified Requirements ──────────────────────────────────
+# Flask dashboard (app.py)
 Flask
-pyserial
 Werkzeug
 MarkupSafe
 Jinja2
 itsdangerous
 click
-numpy
+pyserial
 mne
 scikit-learn
 joblib
 cryptography
+
+# Shared
+numpy
+
+# Eye Tracking backend (EyeTrack_Featrue/main.py)
+fastapi
+uvicorn[standard]
+opencv-python-headless
+torch
+torchvision
+l2cs @ git+https://github.com/edavalosanaya/L2CS-Net.git@main

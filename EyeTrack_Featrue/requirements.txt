@@ -1,0 +1,7 @@
+fastapi
+uvicorn[standard]
+opencv-python-headless
+numpy
+torch
+torchvision
+l2cs @ git+https://github.com/edavalosanaya/L2CS-Net.git@main

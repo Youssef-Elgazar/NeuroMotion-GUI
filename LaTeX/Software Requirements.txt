@@ -1,0 +1,96 @@
+a. User Requirements
+
+The system shall allow a user to control the robot using mental commands detected by an EEG headset.
+
+The system shall provide a simple interface for starting and stopping EEG data collection.
+
+The system shall provide visual feedback to show which command the AI model has detected.
+
+The user shall be able to recalibrate or retrain the system for better accuracy.
+
+The system shall allow manually overriding robot motion for safety.
+
+The system shall provide a safe shutdown option for the robot.
+
+The system shall support multiple predefined mental commands (e.g., forward, backward, left, right, stop).
+
+The system shall alert the user if EEG signals are too noisy or unstable for control.
+
+b. Functional Requirements
+
+The system shall connect to and read real-time EEG signals from the headset.
+
+The system shall preprocess EEG data (filtering, normalization, artifact removal).
+
+The system shall predict the user’s intended command using the trained AI model.
+
+The system shall map predicted commands to robot control instructions.
+
+The system shall send commands to the Robonova AI-3 via its communication API (serial, UART, or Bluetooth).
+
+The system shall log EEG readings and predicted commands for debugging and retraining.
+
+The system shall allow updating or retraining the AI model with new user data.
+
+The system shall detect loss of EEG signal and immediately issue a STOP command.
+
+The system shall handle incorrect or low-confidence predictions by asking for user confirmation or defaulting to “stop”.
+
+The system shall support emergency stop triggered by either software or a physical button.
+
+The system shall provide an interface for configuring robot behaviors or command mappings.
+
+The system shall integrate safety rules preventing the robot from executing unsafe motions.
+
+c. Non-Functional Requirements
+
+Accuracy:
+
+The AI model shall achieve at least 85–90% prediction accuracy under calibrated conditions.
+
+Latency:
+
+The system shall process EEG input and control the robot with a maximum delay of 150–300 ms.
+
+Reliability:
+
+The system shall handle continuous EEG streaming for at least 1 hour without interruption.
+
+The robot shall not execute a command unless it is received correctly and validated.
+
+Safety:
+
+The robot shall default to STOP on any communication failure, model uncertainty, or high-noise EEG input.
+
+All robot motions shall comply with mechanical safety constraints of the Robonova AI-3.
+
+Usability:
+
+The interface shall be intuitive and require minimal technical knowledge.
+
+Calibration steps shall take no longer than 1–2 minutes.
+
+Maintainability:
+
+The system architecture shall allow replacing the AI model without redesigning the entire pipeline.
+
+Logs and configuration files shall be easily accessible.
+
+Scalability:
+
+The system shall support adding more mental commands in future versions.
+
+
+Compatibility:
+
+It shall communicate reliably with the HBE Robonova AI-3 over the chosen communication interface.
+
+Performance:
+
+CPU and memory usage shall remain below 70% to avoid lag during real-time processing.
+
+Security:
+
+User training data and EEG recordings shall be stored securely and access-controlled.
+
+Commands sent to the robot shall be validated to prevent injection of unintended actions.

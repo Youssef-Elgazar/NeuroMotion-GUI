@@ -14,6 +14,9 @@ import time
 import socket
 # import serial  # [SERIAL] uncomment and replace socket logic to use direct serial instead of Socat TCP
 from flask import Flask, abort, jsonify, redirect, render_template, request, session, url_for
+import subprocess
+import sys
+import atexit
 
 from demo_mode import EEGDemoEngine
 from neuro_motion_db import (
@@ -294,10 +297,58 @@ def send_command(command_code):
 #         except Exception as e:
 #             last_error_message = str(e)
 #             return False
-        except Exception as e:
-            print("Error sending command: {}".format(e))
-            last_error_message = str(e)
-            return False
+
+
+# Eye tracking server monitor (keeps uvicorn running)
+_eye_proc = None
+
+def _stop_eye_tracking_server():
+    global _eye_proc
+    try:
+        if _eye_proc and _eye_proc.poll() is None:
+            print("Stopping eye tracking server...")
+            _eye_proc.terminate()
+            try:
+                _eye_proc.wait(timeout=5)
+            except Exception:
+                _eye_proc.kill()
+    except Exception as e:
+        print(f"Error stopping eye tracking server: {e}")
+
+def _start_eye_tracking_monitor():
+    """Start and monitor the EyeTrack uvicorn server; restart if it exits."""
+    global _eye_proc
+    models_path = os.path.abspath(os.path.join(os.path.dirname(__file__), 'EyeTrack_Featrue', 'models', 'L2CSNet_gaze360.pkl'))
+    env = os.environ.copy()
+    env['MODEL_PATH'] = models_path
+    cmd = [sys.executable, '-m', 'uvicorn', 'EyeTrack_Featrue.main:app', '--port', '8000']
+
+    def _port_in_use(port, host='127.0.0.1'):
+        import socket as _s
+        with _s.socket(_s.AF_INET, _s.SOCK_STREAM) as sock:
+            try:
+                sock.bind((host, port))
+                return False
+            except OSError:
+                return True
+
+    # If port already in use, assume a server is running and do not start another.
+    if _port_in_use(8000):
+        print("Port 8000 in use; assuming eye tracking server already running. Monitor exiting.")
+        return
+
+    try:
+        print(f"Starting Eye tracking server: {cmd} with MODEL_PATH={models_path}")
+        _eye_proc = subprocess.Popen(cmd, env=env)
+        _eye_proc.wait()
+        rc = _eye_proc.returncode
+        print(f"Eye tracking server exited with code {rc}")
+        _eye_proc = None
+    except Exception as e:
+        print(f"Error launching eye tracking server: {e}")
+
+# Ensure we stop the child on exit
+atexit.register(_stop_eye_tracking_server)
 
 
 @app.before_request
@@ -546,5 +597,9 @@ if __name__ == '__main__':
     print("Robot TCP bridge: {}:{}".format(ROBOT_TCP_HOST, ROBOT_TCP_PORT))
     print("="*60 + "\n")
     
+    # Start eye tracking monitor thread so the uvicorn server runs alongside Flask
+    monitor_thread = threading.Thread(target=_start_eye_tracking_monitor, daemon=True)
+    monitor_thread.start()
+
     # Run the Flask app
     app.run(host='0.0.0.0', port=5000, debug=False, threaded=True)

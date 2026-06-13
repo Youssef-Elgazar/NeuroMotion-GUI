@@ -13,7 +13,7 @@ import time
 
 import socket
 # import serial  # [SERIAL] uncomment and replace socket logic to use direct serial instead of Socat TCP
-from flask import Flask, abort, jsonify, redirect, render_template, request, session, url_for
+from flask import Flask, abort, jsonify, redirect, render_template, request, session, send_from_directory, url_for
 import subprocess
 import sys
 import atexit
@@ -35,6 +35,7 @@ app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(
     hours=int(os.getenv('SESSION_LIFETIME_HOURS', '8'))
 )
 API_SECURE_TOKEN = secrets.token_urlsafe(32)
+ROBOT_ILLUSTRATIONS_DIR = os.path.join(os.path.dirname(__file__), 'Robot Illustrations')
 
 # Robot command mappings (from robot_protocol.h)
 ROBOT_COMMANDS = {
@@ -156,6 +157,11 @@ def login_required_api(view_function):
         return view_function(*args, **kwargs)
 
     return wrapper
+
+
+@app.route('/robot-illustrations/<path:filename>')
+def robot_illustration(filename):
+    return send_from_directory(ROBOT_ILLUSTRATIONS_DIR, filename)
 
 
 def get_current_user_context():

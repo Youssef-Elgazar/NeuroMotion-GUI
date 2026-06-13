@@ -2,283 +2,69 @@
 
 ## Overview
 
-The application now opens with a database-backed login page and, after authentication, redirects to a cleaner dashboard for the NeuroMotion experience.
+NeuroMotion is a modern, responsive web control dashboard for humanoid robotic interaction. It features secure database-backed login authentication, live EEG-style command simulation, and real-time gaze-direction tracking using L2CS-Net.
 
-### What it includes
+---
 
-- A seeded SQLite-backed admin account created automatically on first launch.
-- Login credentials for the default admin user: `admin` / `admin`.
-- A polished dashboard with mental command streaming, eye tracking placeholder mode, live telemetry, and session history.
-- Persistent demo-session metrics stored in the local database.
+## What's Included
 
-### Demo controls in the page
+- **Secure Login Access**: Fully integrated database authentication system (SQLite) with automatic admin seed (`admin` / `admin`).
+- **Dashboard Telemetry & Metrics**: Displays overall session counters, accuracy percentages, and average intent confidence. Includes collapsible panels.
+- **Mental Command Streaming**: Simulates real-time neural intent streaming to test command dispatching, bridge latency, and intent success streaks.
+- **Real-Time Eye Tracking**: Uses a side-by-side feed of L2CS-Net gaze estimation alongside an interactive robot view, enabling gaze-direction-based robot control.
+- **Independent Scrolling Sidebar**: A sticky sidebar that scrolls on its own if the viewport height is restricted.
+- **Clean Architecture**: Refactored to separate HTML templates from static assets:
+  - Stylesheet is located in `static/css/style.css`
+  - JavaScript logic is located in `static/js/app.js`
 
-- **Start streaming**: starts the EEG-style demo stream.
-- **Stop streaming**: stops the demo stream.
-- **Activate demo**: selects the mental command mode and starts the stream.
-- **Preset mode**: alternates between forward step and bow commands with a delay.
-- **Eye tracking mode**: shown as the next implementation target.
+---
 
-### Optional environment variables
-
-- `FLASK_SECRET_KEY` (recommended for persistent sessions)
-- `SESSION_LIFETIME_HOURS` (default `8`)
-- `SERIAL_PORT` if you want to override the robot connection in code later
-- `DEMO_PACKET_INTERVAL_SEC` (default `3.0`)
-- `DEMO_PRESET_DELAY_SEC` (default matches the demo packet interval)
-- `DEMO_CONFIDENCE_THRESHOLD` (default `0.60`)
-- `DEMO_STREAK_REQUIRED` (default `2`)
-- `DEMO_BRIDGE_SEND_REAL` (default `0`, set `1` to forward stable predictions to robot serial)
-
-### API endpoints added
-
-- `GET /api/demo/state`
-- `POST /api/demo/start`
-- `POST /api/demo/stop`
-- `POST /api/demo/transition`
-- `POST /api/demo/robot_bridge`
-- `POST /api/demo/preset_mode`
-
-## Run It
-
-```bash
-pip install -r requirements.txt
-python app.py
-```
-
-The first run creates `instance/neuro_motion.db` and seeds the admin user automatically.
-
-## Files Structure
-
-The current project layout is:
+## File Structure
 
 ```
 Web_Interface/
-├── app.py
-├── controller.py
-├── demo_mode.py
-├── neuro_motion_db.py
-├── security.py
-└── templates/
-   └── index.html
+├── app.py                     # Flask backend server
+├── controller.py              # Robot communication bridge
+├── demo_mode.py               # EEG packet generation engine
+├── neuro_motion_db.py         # Database models and CRUD queries
+├── security.py                # Session logging and key management
+├── static/                    # External static assets
+│   ├── css/
+│   │   └── style.css          # Core stylesheet
+│   └── js/
+│       └── app.js             # Interactive client-side scripts
+├── templates/
+│   └── index.html             # Clean HTML template shell
+└── Robot Illustrations/       # Front, back, left, and right robot JPEGs
 ```
 
-## Accessing from Other Devices
+---
 
-1. **From the same computer:**
-   - Open browser: `http://localhost:5000`
+## Running the Interface
 
-2. **From other devices on the network:**
-   - Use the IP address shown: `http://192.168.1.100:5000`
-   - Make sure firewall allows port 5000
-
-3. **On mobile devices:**
-   - Simply enter the network IP in your mobile browser
-   - Interface is responsive and mobile-friendly
-
-## Features
-
-### Web Interface
-
-- ✅ Beautiful, modern UI with gradient design
-- ✅ Organized by command categories
-- ✅ Quick action buttons for common commands
-- ✅ Real-time status updates via AJAX
-- ✅ Mobile responsive design
-- ✅ Keyboard shortcuts (WASD for movement)
-- ✅ Works with Python 3.6+ (no SocketIO needed)
-
-### Keyboard Shortcuts
-
-- `W` - Forward Step
-- `S` - Backward Step
-- `A` - Turn Left
-- `D` - Turn Right
-- `Q` - Go Left
-- `E` - Go Right
-- `Space` - Attention
-
-### Command Categories
-
-1. **Movement** - Walking, running, turning
-2. **Attack Moves** - Various punches and kicks
-3. **Acrobatics** - Tumbling, flips
-4. **Expressions** - Head movements, emotions
-
-## Troubleshooting
-
-### Serial Port Issues
-
+### 1. Install Dependencies
 ```bash
-# Check if device exists
-ls -l /dev/ttyS1
-
-# Check permissions
-groups $USER
-
-# Test serial port
-stty -F /dev/ttyS1 4800
-echo "test" > /dev/ttyS1
+pip install -r requirements.txt
 ```
 
-### Python Version Check
-
+### 2. Run the Main Flask Application
 ```bash
-# Verify Python version
-python3 --version
-
-# Should show Python 3.6.x or higher
+python app.py
 ```
+*The database and encryption keys will automatically initialize on the first run.*
 
-### Port Already in Use
-
+### 3. Run the Eye Tracking Server (Optional)
+If utilizing the gaze estimation mode, run the uvicorn service:
 ```bash
-# Find what's using port 5000
-sudo lsof -i :5000
-
-# Kill the process if needed
-sudo kill -9 <PID>
+uvicorn EyeTrack_Featrue.main:app --port 8000
 ```
 
-### Cannot Access from Other Devices
+---
 
-1. Find your actual IP address:
+## Environmental Settings
 
-   ```bash
-   ip addr show
-   # or
-   hostname -I
-   ```
-
-2. Ensure devices are on same network
-
-3. Check firewall:
-
-   ```bash
-   # Allow port 5000 (Ubuntu/Debian)
-   sudo ufw allow 5000
-
-   # Or temporarily disable
-   sudo ufw disable
-   ```
-
-### ImportError Issues
-
-If you get import errors, try:
-
-```bash
-# Uninstall all and reinstall
-pip3 uninstall Flask pyserial Werkzeug MarkupSafe Jinja2 itsdangerous click
-pip3 install -r requirements.txt
-```
-
-## Running as a Service (Optional)
-
-To run automatically on boot, create a systemd service:
-
-`/etc/systemd/system/robot-control.service`:
-
-```ini
-[Unit]
-Description=Robot Control Web Interface
-After=network.target
-
-[Service]
-Type=simple
-User=odroid
-WorkingDirectory=/home/odroid/robot_web_control
-ExecStart=/usr/bin/python3 /home/odroid/robot_web_control/app.py
-Restart=always
-RestartSec=10
-
-[Install]
-WantedBy=multi-user.target
-```
-
-Enable and start:
-
-```bash
-sudo systemctl daemon-reload
-sudo systemctl enable robot-control
-sudo systemctl start robot-control
-sudo systemctl status robot-control
-```
-
-View logs:
-
-```bash
-sudo journalctl -u robot-control -f
-```
-
-## Testing Without Robot
-
-To test the interface without the actual robot connected:
-
-In `app.py`, the code will already handle missing serial gracefully. You'll see:
-
-```
-Warning: Could not initialize serial connection
-Commands will not be sent to robot
-```
-
-The interface will still work and show command feedback.
-
-## Security Notes
-
-⚠️ **Important:** This interface has no authentication. Only use on trusted networks!
-
-For production use, consider adding:
-
-- User authentication (Flask-Login)
-- HTTPS/SSL
-- Rate limiting
-- Command validation
-- Access logging
-
-## Quick Test
-
-After starting the server, test with:
-
-```bash
-# From another terminal
-curl http://localhost:5000/api/status
-# Should return: {"serial_connected":true,"serial_port":"/dev/ttyS1"}
-
-curl -X POST http://localhost:5000/api/send_command \
-  -H "Content-Type: application/json" \
-  -d '{"command":"BOW"}'
-# Should return: {"success":true,"message":"Command sent: BOW"}
-```
-
-## Common Issues on Odroid
-
-### 1. Serial Port Name
-
-Odroid might use different serial port names:
-
-- `/dev/ttyS1` (most common)
-- `/dev/ttySAC1` (Samsung SoC)
-- Check with: `ls /dev/tty*`
-
-### 2. Permission Denied
-
-```bash
-sudo chmod 666 /dev/ttyS1
-# Or add to dialout group permanently:
-sudo usermod -a -G dialout odroid
-```
-
-### 3. Port 5000 Already Used
-
-Change port in app.py:
-
-```python
-app.run(host='0.0.0.0', port=8080, debug=False, threaded=True)
-```
-
-## Need Help?
-
-- Check Python version: `python3 --version`
-- Check pip version: `pip3 --version`
-- List installed packages: `pip3 list`
-- Test serial manually: `echo "test" > /dev/ttyS1`
+You can customize the runtime behaviour using the following optional variables:
+- `FLASK_SECRET_KEY`: Custom Flask cryptographic key for session storage.
+- `SESSION_LIFETIME_HOURS`: Cookie expiration limit (defaults to `8`).
+- `DEMO_BRIDGE_SEND_REAL`: Set to `1` to forward stable intent predictions to the robot interface.
+- `ROBOT_TCP_HOST` & `ROBOT_TCP_PORT`: TCP endpoint configurations for the Socat connection.

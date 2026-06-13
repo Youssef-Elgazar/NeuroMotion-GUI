@@ -146,8 +146,6 @@ Muhammad Sherif Muhammad Awad
 \chapter*{ABSTRACT}
 \addcontentsline{toc}{chapter}{ABSTRACT}
 
-% [HARDWARE-AGNOSTIC PARAGRAPH — describes the intended system design.
-%  Revise or confirm wording before final submission]:
 Millions of individuals worldwide suffer from motor disabilities that prevent them from
 operating conventional assistive devices. NeuroMotion is a non-invasive Brain-Computer
 Interface (BCI) system designed to enable real-time mental control of a humanoid robot
@@ -614,7 +612,7 @@ signal exploited by the CSP algorithm in the NeuroMotion classification pipeline
 
 \begin{figure}[!htbp]
 \centering
-\includegraphics[width=0.70\textwidth]{fig_erd_ers}
+% \includegraphics[width=0.70\textwidth]{fig_erd_ers}
 \caption{Illustration of Event-Related Desynchronization (ERD) and
 Event-Related Synchronization (ERS) during left-hand motor imagery. Relative
 Mu/Beta band power at the contralateral motor cortex (C4) drops substantially
@@ -1062,7 +1060,13 @@ referencing specific source files, configuration parameters, and measured outcom
 \section{System Architecture Overview}
 \label{sec:arch_overview}
 % ─────────────────────────────────────────────────────────────
-
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=0.75\textwidth]{fig_system_architecture.jpeg}
+\caption{High-level system architecture of NeuroMotion.}
+\label{fig:system_architecture}
+\end{figure}
+\FloatBarrier
 NeuroMotion follows a \textbf{three-tier client-server architecture} that separates
 presentation, application logic, and hardware communication into independent layers
 (see Figure~\ref{fig:overview} for a high-level pipeline overview).
@@ -1093,16 +1097,7 @@ local network.
     PySerial (Serial/UART) at 4800\,baud to the HBE Robonova AI3 on COM8. A
     thread-safe lock and 1.5-second busy window prevent command collision.
 
-\begin{figure}[!htbp]
-\centering
-\includegraphics[width=0.75\textwidth]{fig_system_architecture.jpg.jpeg}
-\caption{High-level system architecture of NeuroMotion. The three-tier design
-separates the Flask/Jinja2 GUI frontend, the Python dual-server application layer
-(EEG demo engine + eye tracking FastAPI service), and the PySerial hardware
-communication layer to the Robonova AI3 robot.}
-\label{fig:system_architecture}
-\end{figure}
-\FloatBarrier
+
 
 % ─────────────────────────────────────────────────────────────
 \section{Software Design Diagrams}
@@ -1183,9 +1178,9 @@ confidence filter, and finally converted into robot commands that exit the syste
 to the Robonova AI3. Session telemetry flows are shown entering the security and
 persistence layer.
 
-\begin{figure}[!htbp]
+\begin{figure}[p]
 \centering
-\includegraphics[width=0.70\textwidth, height=0.42\textheight, keepaspectratio]{DFD-L1}
+\includegraphics[width=\textwidth, height=0.9\textheight, keepaspectratio]{DFD-L1}
 \caption{Level~1 Data Flow Diagram for NeuroMotion. Data transforms are
 represented as processing bubbles; arrows indicate the direction and type of
 data flow between processes, external entities (User, Robonova AI3), and the
@@ -1226,7 +1221,7 @@ directly to \texttt{IDLE}.
 
 \begin{figure}[!htbp]
 \centering
-\includegraphics[width=0.60\textwidth]{State-diagram}
+\includegraphics[width=\textwidth, height=0.85\textheight, keepaspectratio]{State-diagram}
 \caption{State diagram for the NeuroMotion inference engine and command dispatch
 controller. The emergency stop transition is available from any active state,
 ensuring that the system can always be brought to a safe idle condition regardless
@@ -1252,7 +1247,7 @@ Key design decisions include:
         persist for a configurable lifetime (default: 8 hours). Each login clears the
         previous session to prevent session fixation attacks.
 
-  \item \textbf{Decorator-based access control:} Two decorators --- 
+  \item \textbf{Decorator-based access control:} Two decorators ---
         \texttt{login\_required\_html} and \texttt{login\_required\_api} --- enforce
         authentication on all protected routes. HTML routes redirect to the login page;
         API routes return HTTP~401 JSON responses.
@@ -1301,58 +1296,6 @@ hierarchical classification logic:
   \item If the winning probability falls below the 60\% threshold, the system outputs
         \texttt{IDLE} without dispatching any robot command.
 \end{enumerate}
-
-\begin{figure}[!htbp]
-\centering
-\begin{tikzpicture}[
-    node distance=1.0cm and 1.5cm,
-    block/.style={draw=black, thick, rectangle, fill=blue!5, text width=5.5cm, align=center, rounded corners, minimum height=0.9cm, font=\small},
-    parallel/.style={draw=black, thick, rectangle, fill=teal!5, text width=3.2cm, align=center, rounded corners, minimum height=0.8cm, font=\small},
-    decision/.style={draw=black, thick, diamond, fill=yellow!10, aspect=1.8, text width=2.5cm, align=center, font=\small, inner sep=1pt},
-    endblock/.style={draw=black, thick, rectangle, fill=red!5, text width=3cm, align=center, rounded corners, minimum height=0.8cm, font=\small},
-    arrow/.style={-Latex, thick}
-]
-  % Nodes
-  \node (eeg) [block] {Phase 1: Raw EEG Input\\(14 Channels, 128/256\,Hz)};
-  \node (filter) [block, below=of eeg] {Phase 2: Bandpass Filter\\(8--30\,Hz, Mu \& Beta Rhythms)};
-  \node (csp) [block, below=of filter] {Phase 3: Spatial Filtering (CSP)\\(Extract Covariance Features)};
-  
-  % Parallel SVMs
-  \node (svmA) [parallel, below left=0.8cm and -0.8cm of csp] {Model A (Horizontal)\\Left vs.\ Right};
-  \node (svmB) [parallel, below right=0.8cm and -0.8cm of csp] {Model B (Vertical)\\Forward vs.\ Backward};
-  
-  \node (gate) [block, below=2.3cm of csp] {Phase 4: Hierarchical Selector\\$\hat{y} = \arg\max_{m} \max(\mathbf{p}_m)$};
-  
-  \node (decision) [decision, below=of gate] {Confidence $\ge$ 60\%?};
-  
-  \node (streak) [block, below=of decision] {Phase 5: Temporal Smoothing\\(Requires 2-Frame Streak)};
-  \node (dispatch) [endblock, below=of streak] {Dispatch Command\\(Robonova COM8)};
-  
-  \node (idle) [endblock, right=1.5cm of decision] {Output IDLE\\(Safe State)};
-  
-  % Arrows
-  \draw [arrow] (eeg) -- (filter);
-  \draw [arrow] (filter) -- (csp);
-  
-  \draw [arrow] (csp.west) -- ++(-0.5,0) |- (svmA.west);
-  \draw [arrow] (csp.east) -- ++(0.5,0) |- (svmB.east);
-  
-  \draw [arrow] (svmA.south) |- (gate.north);
-  \draw [arrow] (svmB.south) |- (gate.north);
-  
-  \draw [arrow] (gate) -- (decision);
-  \draw [arrow] (decision) -- node[left, font=\scriptsize] {Yes} (streak);
-  \draw [arrow] (decision) -- node[above, font=\scriptsize] {No} (idle);
-  \draw [arrow] (streak) -- (dispatch);
-  \draw [arrow] (streak.east) -| node[above right, font=\scriptsize] {No Streak} (idle.south);
-  
-\end{tikzpicture}
-\caption{The five-phase NeuroMotion ML pipeline as implemented in the live system.
-Pre-processed EEG segments are streamed by the demo engine, projected through the
-CSP filter, classified in parallel by both specialist SVMs, gated by the 60\%
-confidence threshold, and dispatched as robot commands over PySerial.}
-\label{fig:ml_pipeline}
-\end{figure}
 
 \subsection{Robot Serial Communication Protocol}
 
@@ -1563,43 +1506,6 @@ external unauthorised requests.
 User passwords are stored using \textbf{Werkzeug's} \texttt{generate\_password\_hash}
 function, which applies PBKDF2-HMAC-SHA256 with a random salt by default.
 Plaintext passwords are never stored or logged.
-
-\begin{figure}[!htbp]
-\centering
-\begin{tikzpicture}[
-    node distance=1.0cm and 1.2cm,
-    block/.style={draw=black, thick, rectangle, fill=blue!5, text width=5.2cm, align=center, rounded corners, minimum height=0.8cm, font=\small},
-    storage/.style={draw=black, thick, cylinder, fill=green!5, shape border rotate=90, text width=2.5cm, align=center, minimum height=1.0cm, font=\small},
-    arrow/.style={-Latex, thick}
-]
-  % Nodes
-  \node (session) [block] {Session Telemetry\\(Memory: List of Packets)};
-  \node (json) [block, below=of session] {JSON Serialisation\\(\texttt{json.dumps()})};
-  \node (utf8) [block, below=of json] {UTF-8 Encode\\(\texttt{string.encode()})};
-  
-  \node (key) [storage, left=1.2cm of utf8, yshift=-0.7cm] {Master Key File\\(\texttt{Master\_Encryption\_Key.key})};
-  
-  \node (fernet) [block, below=of utf8] {AES Fernet Encryption\\(AES-128-CBC + HMAC-SHA256)};
-  \node (file) [storage, below=of fernet] {Secure Log File\\(\texttt{Secure\_Session\_Logs/*.enc})};
-  
-  % Arrows
-  \draw [arrow] (session) -- (json);
-  \draw [arrow] (json) -- (utf8);
-  \draw [arrow] (utf8) -- (fernet);
-  \draw [arrow] (key.south) |- (fernet.west);
-  \draw [arrow] (fernet) -- (file);
-  
-  % Decryption label
-  \path (session.east) -- ++(1.2,0) coordinate (p1);
-  \path (file.east) -- ++(1.2,0) coordinate (p2);
-  \draw [arrow, dashed, Latex-] (session.east) -- (p1) -- node[right, font=\scriptsize, align=left] {Decryption Flow:\\1. Read \texttt{.enc} file\\2. Verify HMAC\\3. Decrypt AES\\4. Parse JSON} (p2) -- (file.east);
-
-\end{tikzpicture}
-\caption{Data security and encryption flow in NeuroMotion. Session telemetry is
-serialised to JSON, AES Fernet encrypted, and written to disk as an \texttt{.enc}
-file. Decryption requires the master key held exclusively on the server.}
-\label{fig:security_flow}
-\end{figure}
 
 % ─────────────────────────────────────────────────────────────
 \section{Database \& Session Management}

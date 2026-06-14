@@ -31,6 +31,15 @@ class EEGDemoEngine(object):
         self.preset_mode_enabled = False
         self.preset_sequence = ("FWD_SHORT_STEP", "BOW")
         self.preset_sequence_index = 0
+
+        # Eye tracking state
+        self.eye_confidence_threshold = 0.70
+        self.eye_last_dispatch_time = 0.0
+        self.eye_dispatch_interval_sec = 2.0
+        self.show_back_illustration = False
+
+        # Fire-once preset (mental command mode only)
+        self._fire_once_preset_pending = False
         
         # Target mapping in notebook: 1:'FORWARD', 2:'BACKWARD', 3:'LEFT', 4:'RIGHT'
         self.target_names = {1: 'FORWARD', 2: 'BACKWARD', 3: 'LEFT', 4: 'RIGHT'}
@@ -100,6 +109,7 @@ class EEGDemoEngine(object):
             return {"success": True, "enabled": self.robot_bridge_enabled}
 
     def set_preset_mode(self, enabled):
+        """Legacy toggle — kept for compatibility."""
         with self._lock:
             self.preset_mode_enabled = bool(enabled)
             self.preset_sequence_index = 0
@@ -110,6 +120,63 @@ class EEGDemoEngine(object):
                 "enabled": self.preset_mode_enabled,
                 "next_command": next_command,
             }
+
+    def fire_preset_once(self):
+        """Queue the preset sequence (FWD_SHORT_STEP -> BOW -> IDLE) to fire once.
+        Mental command streaming mode only. Each click fires the sequence once."""
+        with self._lock:
+            if self._fire_once_preset_pending:
+                return {"success": False, "message": "Preset already in progress."}
+            self._fire_once_preset_pending = True
+            return {"success": True, "message": "Preset sequence queued: FWD_SHORT_STEP -> BOW -> IDLE"}
+
+    def dispatch_eye_command(self, direction, confidence):
+        """Dispatch a robot command from an eye tracking event.
+        direction: 'UP','DOWN','LEFT','RIGHT','BACK'
+        confidence: float 0-1
+        Returns dict with success and show_back_illustration flag.
+        """
+        EYE_MAP = {
+            'UP':    'FWD_SHORT_STEP',
+            'DOWN':  None,            # show back illustration, no movement
+            'LEFT':  'GO_LEFT',
+            'RIGHT': 'GO_RIGHT',
+            'BACK':  'BWD_SHORT_STEP',
+        }
+
+        with self._lock:
+            if direction == 'DOWN':
+                self.show_back_illustration = True
+                return {"success": True, "show_back_illustration": True, "command": None}
+
+            self.show_back_illustration = False
+
+            if confidence < self.eye_confidence_threshold:
+                return {
+                    "success": False,
+                    "show_back_illustration": False,
+                    "message": f"Confidence {confidence:.0%} below threshold {self.eye_confidence_threshold:.0%}"
+                }
+
+            now = time.time()
+            if now - self.eye_last_dispatch_time < self.eye_dispatch_interval_sec:
+                remaining = self.eye_dispatch_interval_sec - (now - self.eye_last_dispatch_time)
+                return {
+                    "success": False,
+                    "show_back_illustration": False,
+                    "message": f"Rate limited, wait {remaining:.1f}s"
+                }
+
+            command = EYE_MAP.get(direction.upper())
+            if not command:
+                return {"success": False, "show_back_illustration": False, "message": f"Unknown direction: {direction}"}
+
+            if self.robot_bridge_enabled and self.send_robot_command_callback:
+                sent = self.send_robot_command_callback(command)
+                self.eye_last_dispatch_time = now
+                return {"success": sent, "show_back_illustration": False, "command": command}
+
+            return {"success": False, "show_back_illustration": False, "message": "Robot bridge disabled"}
 
     def start(self):
         """Start or resume generated simulation."""
@@ -269,10 +336,28 @@ class EEGDemoEngine(object):
         self.packet_id += 1
         self.advance_data()
         self._update_streak()
-        if self.preset_mode_enabled:
+        if self._fire_once_preset_pending:
+            self._execute_fire_once_preset()
+        elif self.preset_mode_enabled:
             self._attempt_preset_dispatch()
         else:
             self._attempt_dispatch()
+
+    def _execute_fire_once_preset(self):
+        """Execute the fire-once preset sequence: FWD_SHORT_STEP -> BOW -> IDLE.
+        Runs each step sequentially in a background thread so the tick loop isn't blocked.
+        """
+        self._fire_once_preset_pending = False
+
+        def _run():
+            sequence = ['FWD_SHORT_STEP', 'BOW', 'ATTENTION_1']
+            for cmd in sequence:
+                if self.send_robot_command_callback and self.robot_bridge_enabled:
+                    self.send_robot_command_callback(cmd)
+                time.sleep(3.0)
+
+        t = threading.Thread(target=_run, daemon=True)
+        t.start()
 
     def _run_loop(self):
         while True:
@@ -335,5 +420,7 @@ class EEGDemoEngine(object):
                 "active_subject": subj,
                 "streak": self.current_streak,
                 "required_streak": self.required_streak,
-                "last_dispatch": self.last_dispatch
+                "last_dispatch": self.last_dispatch,
+                "show_back_illustration": self.show_back_illustration,
+                "fire_once_preset_pending": self._fire_once_preset_pending
             }

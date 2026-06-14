@@ -86,7 +86,7 @@ last_command = None
 last_send_time = None
 busy_until = 0
 serial_setup_done = False
-DEMO_BRIDGE_SEND_REAL = '1'
+DEMO_BRIDGE_SEND_REAL = os.getenv('DEMO_BRIDGE_SEND_REAL', '1') == '1'  # default True since we hardcoded it working
 _tcp_connected = False
 
 # [SERIAL] Previous direct serial configuration:
@@ -530,8 +530,11 @@ def demo_start():
 @app.route('/api/demo/stop', methods=['POST'])
 @login_required_api
 def demo_stop():
-    """Stop background EEG simulation stream."""
+    """Stop background EEG simulation stream and halt the robot."""
     result = demo_engine.stop()
+    # Send robot to idle/attention position on stop
+    if demo_engine.robot_bridge_enabled:
+        send_named_command('ATTENTION_1', force=True)
     close_active_demo_session(snapshot=demo_engine.snapshot(), status='completed')
     return jsonify(result)
 
@@ -559,10 +562,39 @@ def demo_robot_bridge():
 @app.route('/api/demo/preset_mode', methods=['POST'])
 @login_required_api
 def demo_preset_mode():
-    """Enable or disable the preset forward/bow demo loop."""
+    """Enable or disable the preset forward/bow demo loop (legacy)."""
     data = request.get_json() or {}
     enabled = bool(data.get('enabled'))
     return jsonify(demo_engine.set_preset_mode(enabled))
+
+
+@app.route('/api/demo/fire_preset', methods=['POST'])
+@login_required_api
+def demo_fire_preset():
+    """Fire the preset sequence once (FWD_SHORT_STEP -> BOW -> IDLE).
+    Mental command streaming mode only. Each click fires once."""
+    active_mode = session.get('selected_mode', 'mental_command_streaming')
+    if active_mode != 'mental_command_streaming':
+        return jsonify({'success': False, 'message': 'Preset only available in mental command streaming mode.'})
+    return jsonify(demo_engine.fire_preset_once())
+
+
+@app.route('/api/eye/command', methods=['POST'])
+@login_required_api
+def eye_command():
+    """Receive an eye tracking direction and dispatch to robot.
+    Expected JSON: {direction: 'UP'|'DOWN'|'LEFT'|'RIGHT'|'BACK', confidence: 0.0-1.0}
+    DOWN shows the back illustration instead of moving.
+    """
+    data = request.get_json() or {}
+    direction = data.get('direction', '').upper()
+    confidence = float(data.get('confidence', 0.0))
+
+    if not direction:
+        return jsonify({'success': False, 'message': 'direction required'}), 400
+
+    result = demo_engine.dispatch_eye_command(direction, confidence)
+    return jsonify(result)
 
 @app.route('/api/status')
 @login_required_api

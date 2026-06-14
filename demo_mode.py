@@ -138,10 +138,11 @@ class EEGDemoEngine(object):
         """
         EYE_MAP = {
             'UP':    'FWD_SHORT_STEP',
-            'DOWN':  None,            # show back illustration, no movement
+            'DOWN':  'BWD_SHORT_STEP',
             'LEFT':  'GO_LEFT',
             'RIGHT': 'GO_RIGHT',
             'BACK':  'BWD_SHORT_STEP',
+            'CENTER': 'ATTENTION_1',
         }
 
         with self._lock:
@@ -174,6 +175,14 @@ class EEGDemoEngine(object):
             if self.robot_bridge_enabled and self.send_robot_command_callback:
                 sent = self.send_robot_command_callback(command)
                 self.eye_last_dispatch_time = now
+                
+                # If it's an active movement command, automatically schedule an IDLE reset 1.5s later
+                if command and command != 'ATTENTION_1':
+                    def _reset_stance():
+                        time.sleep(1.5)
+                        self.send_robot_command_callback('ATTENTION_1', force=True)
+                    threading.Thread(target=_reset_stance, daemon=True).start()
+                    
                 return {"success": sent, "show_back_illustration": False, "command": command}
 
             return {"success": False, "show_back_illustration": False, "message": "Robot bridge disabled"}

@@ -444,15 +444,12 @@ const EYE_POST_INTERVAL_MS = 2000;
 
 async function _sendEyeCommandToBackend(direction, confidencePercent) {
     const now = Date.now();
-    if (direction === 'CENTER') return;
 
-    if (direction !== 'DOWN' && (now - _lastEyePostTime < EYE_POST_INTERVAL_MS)) {
+    if (now - _lastEyePostTime < EYE_POST_INTERVAL_MS) {
         return;
     }
 
-    if (direction !== 'DOWN') {
-        _lastEyePostTime = now;
-    }
+    _lastEyePostTime = now;
 
     try {
         const response = await apiFetch('/api/eye/command', {

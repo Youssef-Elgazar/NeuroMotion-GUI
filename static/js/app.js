@@ -336,9 +336,6 @@ function renderSidebarControls(mode) {
     } else {
         container.innerHTML = '';
     }
-
-    // Always refresh the commands reference when controls change
-    renderSidebarCommands(mode);
 }
 
 async function activateMode(mode) {
@@ -525,11 +522,7 @@ let _eyeLastData     = null;    // latest JSON payload from server
 
 async function _sendEyeCommandToBackend(direction, confidencePercent) {
     if (direction === 'CENTER') return;
-
-    // DOWN command is for view toggling only (not moving robot), bypass cooldown check
-    if (direction !== 'DOWN') {
-        if (isCooldownActive()) return;
-    }
+    if (isCooldownActive()) return;
 
     try {
         const response = await apiFetch('/api/eye/command', {
@@ -540,14 +533,10 @@ async function _sendEyeCommandToBackend(direction, confidencePercent) {
             })
         });
         const payload = await response.json();
-        if (payload.success) {
-            if (payload.show_back_illustration) {
-                _updateRobotViewer('BACKWARD', _eyeRunning);
-            } else if (payload.command) {
-                // 3.0s = 1.5s (ROBOT_BUSY_SEC) + 1.5s (ATTENTION_1 idle reset)
-                showCooldown(3.0);
-                _updateRobotViewer(payload.command, _eyeRunning);
-            }
+        if (payload.success && payload.command) {
+            // 3.0s = 1.5s (ROBOT_BUSY_SEC) + 1.5s (ATTENTION_1 idle reset)
+            showCooldown(3.0);
+            _updateRobotViewer(payload.command, _eyeRunning);
         }
     } catch (err) {
         console.error("Failed to send eye command to backend:", err);
@@ -870,7 +859,7 @@ document.addEventListener('DOMContentLoaded', () => {
     updateModeCards(boot.selectedMode);
     updateMetrics(boot.metrics);
     updateLiveState(boot.liveState);
-    renderSidebarControls(boot.selectedMode); // also calls renderSidebarCommands
+    renderSidebarControls(boot.selectedMode);
 
     // Always start on mode-select screen on fresh page load
     showModeSelect();
@@ -896,50 +885,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     setInterval(refreshOverview, 5000);
 });
-
-/* ── Sidebar Commands Reference ─────────────────────── */
-const SIDEBAR_COMMANDS = {
-    mental_command_streaming: [
-        { input: 'FORWARD',  robot: 'FWD_SHORT_STEP' },
-        { input: 'BACKWARD', robot: 'BWD_SHORT_STEP' },
-        { input: 'LEFT',     robot: 'GO_LEFT' },
-        { input: 'RIGHT',    robot: 'GO_RIGHT' },
-    ],
-    eye_tracking: [
-        { input: '↑ Up',    robot: 'FWD_SHORT_STEP' },
-        { input: '↓ Down',  robot: 'View only' },
-        { input: '← Left',  robot: 'GO_LEFT' },
-        { input: '→ Right', robot: 'GO_RIGHT' },
-        { input: 'Back',    robot: 'BWD_SHORT_STEP' },
-    ],
-    manual_control: [
-        { input: '↑ Up',    robot: 'FWD_SHORT_STEP' },
-        { input: '↓ Down',  robot: 'BWD_SHORT_STEP' },
-        { input: '← Left',  robot: 'GO_LEFT' },
-        { input: '→ Right', robot: 'GO_RIGHT' },
-        { input: '⬤ Bow',   robot: 'BOW' },
-    ],
-};
-
-function renderSidebarCommands(mode) {
-    const container = document.getElementById('sidebar-commands-info');
-    if (!container) return;
-    const cmds = SIDEBAR_COMMANDS[mode];
-    if (!cmds || !cmds.length) { container.innerHTML = ''; return; }
-    container.innerHTML = `
-        <div class="section-title">Mode commands</div>
-        <div class="sidebar-commands-list">
-            ${cmds.map(c => `
-                <div class="sidebar-command-row">
-                    <span class="sidebar-command-input">${c.input}</span>
-                    <span class="sidebar-command-arrow">→</span>
-                    <span class="sidebar-command-robot">${c.robot}</span>
-                </div>
-            `).join('')}
-        </div>
-        <div style="height: 18px;"></div>
-    `;
-}
 
 /* ── Manual Control Command Dispatch ─────────────────── */
 async function sendManualCommand(commandName) {

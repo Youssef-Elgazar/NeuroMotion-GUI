@@ -611,8 +611,7 @@ def demo_fire_preset():
 @login_required_api
 def eye_command():
     """Receive an eye tracking direction and dispatch to robot.
-    Expected JSON: {direction: 'UP'|'DOWN'|'LEFT'|'RIGHT'|'BACK', confidence: 0.0-1.0}
-    DOWN shows the back illustration instead of moving.
+    Expected JSON: {direction: 'UP'|'DOWN'|'LEFT'|'RIGHT', confidence: 0.0-1.0}
     """
     data = request.get_json() or {}
     direction = data.get('direction', '').upper()

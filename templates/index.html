@@ -144,7 +144,25 @@
 
                 <div class="user-chip">Signed in as {{ current_user_name }}</div>
 
-                <div class="sidebar-commands-info" id="sidebar-commands-info"></div>
+                <!-- Dynamically updated container for the current mode controls -->
+                <div id="sidebar-mode-controls"></div>
+
+                <div class="section-title">Current session</div>
+                <div class="session-card">
+                    <div class="session-top">
+                        <div>
+                            <div class="muted-kicker">Selected mode</div>
+                            <div class="metric-value" id="current-mode-label">{{ selected_mode_label }}</div>
+                        </div>
+                        <span class="status-pill status-ghost" id="bridge-state-pill">Bridge idle</span>
+                    </div>
+                    <p class="session-meta" id="sidebar-session-message">Your dashboard is ready.</p>
+                </div>
+
+                <div style="height: 16px;"></div>
+                <button class="btn btn-muted" type="button" onclick="showModeSelect()" style="width: 100%;">Change mode</button>
+
+                <div style="height: 18px;"></div>
 
                 <div class="section-title">Select mode</div>
                 <div class="mode-stack" id="mode-stack">
@@ -175,26 +193,6 @@
                         </div>
                     </div>
                 </div>
-
-                <div style="height: 18px;"></div>
-
-                <!-- Dynamically updated container for the current mode controls -->
-                <div id="sidebar-mode-controls"></div>
-
-                <div class="section-title">Current session</div>
-                <div class="session-card">
-                    <div class="session-top">
-                        <div>
-                            <div class="muted-kicker">Selected mode</div>
-                            <div class="metric-value" id="current-mode-label">{{ selected_mode_label }}</div>
-                        </div>
-                        <span class="status-pill status-ghost" id="bridge-state-pill">Bridge idle</span>
-                    </div>
-                    <p class="session-meta" id="sidebar-session-message">Your dashboard is ready.</p>
-                </div>
-
-                <div style="height: 16px;"></div>
-                <button class="btn btn-muted" type="button" onclick="showModeSelect()" style="width: 100%;">Change mode</button>
 
                 <form class="logout-form" action="{{ url_for('logout') }}" method="post">
                     <div style="height: 10px;"></div>

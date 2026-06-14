@@ -1271,53 +1271,6 @@ body::before {
     box-shadow: 0 4px 12px rgba(99, 102, 241, 0.28);
 }
 
-/* ── Sidebar Commands Reference ─────────────────────── */
-.sidebar-commands-info {
-    margin-bottom: 0;
-}
-
-.sidebar-commands-list {
-    margin-top: 8px;
-    display: grid;
-    gap: 4px;
-}
-
-.sidebar-command-row {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 10px;
-    border-radius: 9px;
-    background: #f8fafc;
-    border: 1px solid var(--line);
-    font-size: 0.8rem;
-}
-
-.sidebar-command-input {
-    font-weight: 700;
-    color: var(--ink);
-    font-family: 'Space Grotesk', sans-serif;
-    flex-shrink: 0;
-    min-width: 52px;
-}
-
-.sidebar-command-arrow {
-    color: var(--muted-2);
-    font-size: 0.75rem;
-    flex-shrink: 0;
-}
-
-.sidebar-command-robot {
-    color: var(--muted);
-    font-size: 0.76rem;
-    font-family: monospace;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    flex: 1;
-    text-align: right;
-}
-
 /* ── Cooldown Badge ────────────────────────────────────── */
 .cooldown-floating-badge {
     position: fixed;

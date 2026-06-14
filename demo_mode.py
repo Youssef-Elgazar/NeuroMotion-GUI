@@ -36,7 +36,6 @@ class EEGDemoEngine(object):
         self.eye_confidence_threshold = 0.70
         self.eye_last_dispatch_time = 0.0
         self.eye_dispatch_interval_sec = 2.0
-        self.show_back_illustration = False
 
         # Fire-once preset (mental command mode only)
         self._fire_once_preset_pending = False
@@ -132,29 +131,20 @@ class EEGDemoEngine(object):
 
     def dispatch_eye_command(self, direction, confidence):
         """Dispatch a robot command from an eye tracking event.
-        direction: 'UP','DOWN','LEFT','RIGHT','BACK'
+        direction: 'UP','DOWN','LEFT','RIGHT'
         confidence: float 0-1
-        Returns dict with success and show_back_illustration flag.
         """
         EYE_MAP = {
             'UP':    'FWD_SHORT_STEP',
-            'DOWN':  None,            # show back illustration, no movement
+            'DOWN':  'BWD_SHORT_STEP',
             'LEFT':  'GO_LEFT',
             'RIGHT': 'GO_RIGHT',
-            'BACK':  'BWD_SHORT_STEP',
         }
 
         with self._lock:
-            if direction == 'DOWN':
-                self.show_back_illustration = True
-                return {"success": True, "show_back_illustration": True, "command": None}
-
-            self.show_back_illustration = False
-
             if confidence < self.eye_confidence_threshold:
                 return {
                     "success": False,
-                    "show_back_illustration": False,
                     "message": f"Confidence {confidence:.0%} below threshold {self.eye_confidence_threshold:.0%}"
                 }
 
@@ -163,20 +153,19 @@ class EEGDemoEngine(object):
                 remaining = self.eye_dispatch_interval_sec - (now - self.eye_last_dispatch_time)
                 return {
                     "success": False,
-                    "show_back_illustration": False,
                     "message": f"Rate limited, wait {remaining:.1f}s"
                 }
 
             command = EYE_MAP.get(direction.upper())
             if not command:
-                return {"success": False, "show_back_illustration": False, "message": f"Unknown direction: {direction}"}
+                return {"success": False, "message": f"Unknown direction: {direction}"}
 
             if self.robot_bridge_enabled and self.send_robot_command_callback:
                 sent = self.send_robot_command_callback(command)
                 self.eye_last_dispatch_time = now
-                return {"success": sent, "show_back_illustration": False, "command": command}
+                return {"success": sent, "command": command}
 
-            return {"success": False, "show_back_illustration": False, "message": "Robot bridge disabled"}
+            return {"success": False, "message": "Robot bridge disabled"}
 
     def start(self):
         """Start or resume generated simulation."""
@@ -421,6 +410,5 @@ class EEGDemoEngine(object):
                 "streak": self.current_streak,
                 "required_streak": self.required_streak,
                 "last_dispatch": self.last_dispatch,
-                "show_back_illustration": self.show_back_illustration,
                 "fire_once_preset_pending": self._fire_once_preset_pending
             }

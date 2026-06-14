@@ -189,7 +189,7 @@ def build_dashboard_context():
         'active_mode': active_mode,
         'active_session': active_session,
         'current_user_name': user['display_name'],
-        'selected_mode_label': 'Mental command streaming' if active_mode == 'mental_command_streaming' else 'Eye tracking',
+        'selected_mode_label': ('Mental command streaming' if active_mode == 'mental_command_streaming' else 'Eye tracking' if active_mode == 'eye_tracking' else 'Manual control'),
     }
 
 
@@ -488,7 +488,11 @@ def dashboard_select_mode():
 
     if mode == 'eye_tracking':
         session['selected_mode'] = mode
-        return jsonify({'success': True, 'mode': mode, 'message': 'Eye tracking mode will be available soon.'})
+        return jsonify({'success': True, 'mode': mode, 'message': 'Eye tracking mode selected.'})
+
+    if mode == 'manual_control':
+        session['selected_mode'] = mode
+        return jsonify({'success': True, 'mode': mode, 'message': 'Manual control mode selected.'})
 
     return jsonify({'success': False, 'message': 'Unknown mode selection.'}), 400
 

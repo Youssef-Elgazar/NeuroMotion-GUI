@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=14">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=16">
 </head>
 <body data-view="{{ 'dashboard' if logged_in else 'login' }}">
     {% if not logged_in %}
@@ -112,6 +112,18 @@
                     <div class="mode-select-card-title">Eye tracking mode</div>
                     <div class="mode-select-card-desc">Use the L2CS-Net gaze model to control the robot with your eye movements in real time.</div>
                 </div>
+                <div class="mode-select-card" onclick="activateMode('manual_control')">
+                    <div class="mode-select-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="2" y="8" width="20" height="10" rx="3"/>
+                            <circle cx="8" cy="13" r="1.5" fill="currentColor" stroke="none"/>
+                            <line x1="17" y1="10" x2="17" y2="16"/>
+                            <line x1="14" y1="13" x2="20" y2="13"/>
+                        </svg>
+                    </div>
+                    <div class="mode-select-card-title">Manual control</div>
+                    <div class="mode-select-card-desc">Send direct robot commands using a D-pad interface — forward, backward, left, right, and bow.</div>
+                </div>
             </div>
 
             <form class="mode-select-signout" action="{{ url_for('logout') }}" method="post">
@@ -132,6 +144,8 @@
 
                 <div class="user-chip">Signed in as {{ current_user_name }}</div>
 
+                <div class="sidebar-commands-info" id="sidebar-commands-info"></div>
+
                 <div class="section-title">Select mode</div>
                 <div class="mode-stack" id="mode-stack">
                     <div class="mode-card active" data-mode-card="mental_command_streaming" onclick="activateMode('mental_command_streaming')" style="cursor: pointer;">
@@ -148,6 +162,15 @@
                             <div>
                                 <p class="mode-name">Eye tracking mode</p>
                                 <div class="mode-desc">Use the L2CS-Net gaze model to control the robot with your eye movements in real time.</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mode-card" data-mode-card="manual_control" onclick="activateMode('manual_control')" style="cursor: pointer;">
+                        <div class="mode-top">
+                            <div>
+                                <p class="mode-name">Manual control</p>
+                                <div class="mode-desc">Send direct robot commands using the D-pad interface.</div>
                             </div>
                         </div>
                     </div>
@@ -468,6 +491,89 @@
                         </div>
                     </div>
                 </article>
+
+                <!-- ═══════════════════════════════════════════════════
+                     MANUAL CONTROLS PANEL — D-pad controller layout
+                     ═══════════════════════════════════════════════════ -->
+                <article id="manual-controls-panel" class="panel manual-panel" style="padding: 26px;">
+                    <div class="stream-top" style="margin-bottom: 20px;">
+                        <div>
+                            <div class="muted-kicker">Manual Override</div>
+                            <h2 class="section-title" style="margin-top: 6px; font-size: 1.3rem;"></h2>
+                        </div>
+                    </div>
+
+                    <div class="manual-grid-layout">
+                        <!-- Left: Manual D-pad controls -->
+                        <div class="manual-controls-column">
+                            <div class="dpad-wrap">
+                                <div class="dpad">
+                                    <div class="dpad-corner"></div>
+                                    <button class="dpad-btn dpad-up" type="button" onclick="sendManualCommand('FWD_SHORT_STEP')" title="Forward">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <polyline points="18 15 12 9 6 15"></polyline>
+                                        </svg>
+                                    </button>
+                                    <div class="dpad-corner"></div>
+
+                                    <button class="dpad-btn dpad-left" type="button" onclick="sendManualCommand('GO_LEFT')" title="Left">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <polyline points="15 18 9 12 15 6"></polyline>
+                                        </svg>
+                                    </button>
+                                    <button class="dpad-btn dpad-center" type="button" onclick="sendManualCommand('ATTENTION_1')" title="Attention/Idle" style="background: var(--accent); border-radius: 6px;">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                            <circle cx="12" cy="12" r="8"></circle>
+                                            <line x1="12" y1="16" x2="12" y2="12"></line>
+                                            <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                                        </svg>
+                                    </button>
+                                    <button class="dpad-btn dpad-right" type="button" onclick="sendManualCommand('GO_RIGHT')" title="Right">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <polyline points="9 18 15 12 9 6"></polyline>
+                                        </svg>
+                                    </button>
+
+                                    <div class="dpad-corner"></div>
+                                    <button class="dpad-btn dpad-down" type="button" onclick="sendManualCommand('BWD_SHORT_STEP')" title="Backward">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <polyline points="6 9 12 15 18 9"></polyline>
+                                        </svg>
+                                    </button>
+                                    <div class="dpad-corner"></div>
+                                </div>
+
+                                <button class="dpad-bow-btn" type="button" onclick="sendManualCommand('BOW')">
+                                    ⬤ Bow
+                                </button>
+                                
+                                <div class="note-box" id="manual-note" style="margin-top: 14px; text-align: center; width: 100%; max-width: 300px;">
+                                    Use the D-pad to issue manual instructions directly.
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Right: Robot Illustration -->
+                        <div class="manual-robot-column">
+                            <div class="robot-viewer" id="manual-robot-viewer" style="height: 100%; min-height: 300px;">
+                                <img id="manual-robot-img-front" class="robot-img robot-img-active" src="{{ url_for('robot_illustration', filename='Front.jpeg') }}" alt="Robot front view" draggable="false">
+                                <img id="manual-robot-img-back" class="robot-img" src="{{ url_for('robot_illustration', filename='Back.jpeg') }}" alt="Robot back view" draggable="false">
+                                <img id="manual-robot-img-left" class="robot-img" src="{{ url_for('robot_illustration', filename='Left.jpeg') }}" alt="Robot left view" draggable="false">
+                                <img id="manual-robot-img-right" class="robot-img" src="{{ url_for('robot_illustration', filename='Right.jpeg') }}" alt="Robot right view" draggable="false">
+
+                                <!-- View label chip -->
+                                <div class="robot-view-chip" id="manual-robot-view-chip">Front</div>
+
+                                <!-- Floating command badge -->
+                                <div class="robot-badge" id="manual-robot-badge">
+                                    <span class="robot-badge-dot" id="manual-robot-badge-dot"></span>
+                                    <span class="robot-badge-label" id="manual-robot-badge-label">Idle</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </article>
+            </section>
             </section>
         </section>
     </main>
@@ -482,7 +588,7 @@
         } | tojson }}
     </script>
 
-    <script src="{{ url_for('static', filename='js/app.js') }}?v=14"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v=16"></script></script>
     {% endif %}
 </body>
 </html>

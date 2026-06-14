@@ -31,12 +31,9 @@ function formatPercent(value) {
 }
 
 function formatMode(mode) {
-    if (mode === 'mental_command_streaming') {
-        return 'Mental command streaming';
-    }
-    if (mode === 'eye_tracking') {
-        return 'Eye tracking';
-    }
+    if (mode === 'mental_command_streaming') return 'Mental command streaming';
+    if (mode === 'eye_tracking')             return 'Eye tracking';
+    if (mode === 'manual_control')           return 'Manual control';
     return mode || 'N/A';
 }
 
@@ -209,11 +206,20 @@ function _updateRobotViewer(cmd, running) {
             if (el) el.classList.toggle('robot-img-active', v === view);
         });
 
+        const manualIds = { front: 'manual-robot-img-front', back: 'manual-robot-img-back', left: 'manual-robot-img-left', right: 'manual-robot-img-right' };
+        Object.entries(manualIds).forEach(([v, id]) => {
+            const el = document.getElementById(id);
+            if (el) el.classList.toggle('robot-img-active', v === view);
+        });
+
         const chip = document.getElementById('robot-view-chip');
         if (chip) chip.textContent = _VIEW_LABEL[view] || 'Front';
 
         const eyeChip = document.getElementById('eye-robot-view-chip');
         if (eyeChip) eyeChip.textContent = _VIEW_LABEL[view] || 'Front';
+
+        const manualChip = document.getElementById('manual-robot-view-chip');
+        if (manualChip) manualChip.textContent = _VIEW_LABEL[view] || 'Front';
     }
 
     // Badge: show command label and active dot when streaming
@@ -226,6 +232,11 @@ function _updateRobotViewer(cmd, running) {
     const eyeBadgeLbl  = document.getElementById('eye-robot-badge-label');
     if (eyeBadge)    eyeBadge.classList.toggle('active', !!_eyeRunning && !!cmd && cmd !== 'IDLE');
     if (eyeBadgeLbl) eyeBadgeLbl.textContent = (_eyeRunning && cmd) ? cmd : 'Idle';
+
+    const manualBadge    = document.getElementById('manual-robot-badge');
+    const manualBadgeLbl = document.getElementById('manual-robot-badge-label');
+    if (manualBadge)    manualBadge.classList.toggle('active', !!running && !!cmd && cmd !== 'IDLE');
+    if (manualBadgeLbl) manualBadgeLbl.textContent = (running && cmd) ? cmd : 'Idle';
 }
 
 function updateMetrics(metrics) {
@@ -312,9 +323,22 @@ function renderSidebarControls(mode) {
             </div>
             <div style="height: 18px;"></div>
         `;
+    } else if (mode === 'manual_control') {
+        container.innerHTML = `
+            <div class="section-title">Manual Controls</div>
+            <div class="control-stack">
+                <button class="btn btn-secondary" type="button" id="bridge-toggle-sidebar" onclick="toggleBridge()">
+                    ${boot.liveState && boot.liveState.robot_bridge_enabled ? 'Disable robot bridge' : 'Enable robot bridge'}
+                </button>
+            </div>
+            <div style="height: 18px;"></div>
+        `;
     } else {
         container.innerHTML = '';
     }
+
+    // Always refresh the commands reference when controls change
+    renderSidebarCommands(mode);
 }
 
 async function activateMode(mode) {
@@ -333,22 +357,34 @@ async function activateMode(mode) {
         }
 
         // Toggle panel visibility
-        const mentalPanel = document.getElementById('mental-stream-panel');
-        const eyePanel    = document.getElementById('eye-tracking-panel');
-        const heroPanel   = document.querySelector('.hero');
+        const mentalPanel  = document.getElementById('mental-stream-panel');
+        const eyePanel     = document.getElementById('eye-tracking-panel');
+        const manualPanel  = document.getElementById('manual-controls-panel');
+        const heroPanel    = document.querySelector('.hero');
 
         if (mode === 'mental_command_streaming') {
-            if (heroPanel) heroPanel.style.display = '';
+            if (heroPanel)   heroPanel.style.display = '';
             if (mentalPanel) mentalPanel.style.display = '';
             if (eyePanel)    eyePanel.classList.remove('visible');
+            if (manualPanel) manualPanel.classList.remove('visible');
             stopEyeTracking();
             await startDemo();
         }
 
         if (mode === 'eye_tracking') {
-            if (heroPanel) heroPanel.style.display = 'none';
+            if (heroPanel)   heroPanel.style.display = 'none';
             if (mentalPanel) mentalPanel.style.display = 'none';
             if (eyePanel)    eyePanel.classList.add('visible');
+            if (manualPanel) manualPanel.classList.remove('visible');
+            await refreshOverview();
+        }
+
+        if (mode === 'manual_control') {
+            if (heroPanel)   heroPanel.style.display = 'none';
+            if (mentalPanel) mentalPanel.style.display = 'none';
+            if (eyePanel)    eyePanel.classList.remove('visible');
+            if (manualPanel) manualPanel.classList.add('visible');
+            stopEyeTracking();
             await refreshOverview();
         }
     }
@@ -485,8 +521,7 @@ let _eyeRunning      = false;
 let _eyeSmoothedYaw  = 0;
 let _eyeSmoothedPitch = 0;
 let _eyeLastData     = null;    // latest JSON payload from server
-let _lastEyePostTime = 0;
-const EYE_POST_INTERVAL_MS = 2000;
+// Cooldown is handled by showCooldown() — duration mirrors ROBOT_BUSY_SEC*2 (1.5s cmd + 1.5s attention idle)
 
 async function _sendEyeCommandToBackend(direction, confidencePercent) {
     if (direction === 'CENTER') return;
@@ -509,8 +544,8 @@ async function _sendEyeCommandToBackend(direction, confidencePercent) {
             if (payload.show_back_illustration) {
                 _updateRobotViewer('BACKWARD', _eyeRunning);
             } else if (payload.command) {
-                // Trigger cooldown for successfully dispatched movement command
-                showCooldown(2.0);
+                // 3.0s = 1.5s (ROBOT_BUSY_SEC) + 1.5s (ATTENTION_1 idle reset)
+                showCooldown(3.0);
                 _updateRobotViewer(payload.command, _eyeRunning);
             }
         }
@@ -811,8 +846,10 @@ function showModeSelect() {
     if (selectScreen) selectScreen.classList.remove('hidden-section');
     if (dashSection)  dashSection.classList.add('hidden-section');
 
-    // Stop any active streams when returning to selector
+    // Stop any active streams and hide all panels when returning to selector
     stopEyeTracking();
+    const manualPanel = document.getElementById('manual-controls-panel');
+    if (manualPanel) manualPanel.classList.remove('visible');
 }
 
 function showDashboard() {
@@ -833,20 +870,95 @@ document.addEventListener('DOMContentLoaded', () => {
     updateModeCards(boot.selectedMode);
     updateMetrics(boot.metrics);
     updateLiveState(boot.liveState);
-    renderSidebarControls(boot.selectedMode);
+    renderSidebarControls(boot.selectedMode); // also calls renderSidebarCommands
 
     // Always start on mode-select screen on fresh page load
     showModeSelect();
 
-    // If server-side session had eye_tracking selected, pre-set panels
+    // Pre-set panels to match server-side session mode
     if (boot.selectedMode === 'eye_tracking') {
         const mentalPanel = document.getElementById('mental-stream-panel');
         const eyePanel    = document.getElementById('eye-tracking-panel');
         const heroPanel   = document.querySelector('.hero');
-        if (heroPanel) heroPanel.style.display = 'none';
+        if (heroPanel)   heroPanel.style.display = 'none';
         if (mentalPanel) mentalPanel.style.display = 'none';
         if (eyePanel)    eyePanel.classList.add('visible');
     }
 
+    if (boot.selectedMode === 'manual_control') {
+        const mentalPanel = document.getElementById('mental-stream-panel');
+        const manualPanel = document.getElementById('manual-controls-panel');
+        const heroPanel   = document.querySelector('.hero');
+        if (heroPanel)   heroPanel.style.display = 'none';
+        if (mentalPanel) mentalPanel.style.display = 'none';
+        if (manualPanel) manualPanel.classList.add('visible');
+    }
+
     setInterval(refreshOverview, 5000);
 });
+
+/* ── Sidebar Commands Reference ─────────────────────── */
+const SIDEBAR_COMMANDS = {
+    mental_command_streaming: [
+        { input: 'FORWARD',  robot: 'FWD_SHORT_STEP' },
+        { input: 'BACKWARD', robot: 'BWD_SHORT_STEP' },
+        { input: 'LEFT',     robot: 'GO_LEFT' },
+        { input: 'RIGHT',    robot: 'GO_RIGHT' },
+    ],
+    eye_tracking: [
+        { input: '↑ Up',    robot: 'FWD_SHORT_STEP' },
+        { input: '↓ Down',  robot: 'View only' },
+        { input: '← Left',  robot: 'GO_LEFT' },
+        { input: '→ Right', robot: 'GO_RIGHT' },
+        { input: 'Back',    robot: 'BWD_SHORT_STEP' },
+    ],
+    manual_control: [
+        { input: '↑ Up',    robot: 'FWD_SHORT_STEP' },
+        { input: '↓ Down',  robot: 'BWD_SHORT_STEP' },
+        { input: '← Left',  robot: 'GO_LEFT' },
+        { input: '→ Right', robot: 'GO_RIGHT' },
+        { input: '⬤ Bow',   robot: 'BOW' },
+    ],
+};
+
+function renderSidebarCommands(mode) {
+    const container = document.getElementById('sidebar-commands-info');
+    if (!container) return;
+    const cmds = SIDEBAR_COMMANDS[mode];
+    if (!cmds || !cmds.length) { container.innerHTML = ''; return; }
+    container.innerHTML = `
+        <div class="section-title">Mode commands</div>
+        <div class="sidebar-commands-list">
+            ${cmds.map(c => `
+                <div class="sidebar-command-row">
+                    <span class="sidebar-command-input">${c.input}</span>
+                    <span class="sidebar-command-arrow">→</span>
+                    <span class="sidebar-command-robot">${c.robot}</span>
+                </div>
+            `).join('')}
+        </div>
+        <div style="height: 18px;"></div>
+    `;
+}
+
+/* ── Manual Control Command Dispatch ─────────────────── */
+async function sendManualCommand(commandName) {
+    if (isCooldownActive()) return;
+
+    try {
+        const response = await apiFetch('/api/send_command', {
+            method: 'POST',
+            body: JSON.stringify({ command: commandName, force: false })
+        });
+        const payload = await response.json();
+        const note = document.getElementById('manual-note');
+        if (note) note.textContent = payload.message || commandName;
+
+        if (payload.success) {
+            showCooldown(3.0); // 1.5s (ROBOT_BUSY_SEC) + 1.5s (robot return to ready)
+            _updateRobotViewer(commandName, true);
+        }
+    } catch (err) {
+        console.error('Manual command error:', err);
+    }
+}

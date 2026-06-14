@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=12">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=13">
 </head>
 <body data-view="{{ 'dashboard' if logged_in else 'login' }}">
     {% if not logged_in %}
@@ -17,7 +17,8 @@
             data-dashboard-select-mode-url="{{ url_for('dashboard_select_mode') }}"
             data-demo-start-url="{{ url_for('demo_start') }}"
             data-demo-stop-url="{{ url_for('demo_stop') }}"
-            data-demo-robot-bridge-url="{{ url_for('demo_robot_bridge') }}">
+            data-demo-robot-bridge-url="{{ url_for('demo_robot_bridge') }}"
+            data-demo-fire-preset-url="{{ url_for('demo_fire_preset') }}">
         <section class="page-grid auth-grid">
             <div class="auth-form-wrap panel">
                 <div class="panel-inner auth-form-card">
@@ -79,7 +80,8 @@
         data-dashboard-select-mode-url="{{ url_for('dashboard_select_mode') }}"
         data-demo-start-url="{{ url_for('demo_start') }}"
         data-demo-stop-url="{{ url_for('demo_stop') }}"
-        data-demo-robot-bridge-url="{{ url_for('demo_robot_bridge') }}">
+        data-demo-robot-bridge-url="{{ url_for('demo_robot_bridge') }}"
+        data-demo-fire-preset-url="{{ url_for('demo_fire_preset') }}">
         <!-- ═══ MODE SELECT SCREEN — shown on login, before mode activation ═══ -->
         <div id="mode-select-screen" class="mode-select-screen">
             <div class="brand-mark">NM</div>
@@ -321,6 +323,7 @@
                             <button class="btn btn-primary" type="button" onclick="startDemo()">Start demo stream</button>
                             <button class="btn btn-danger" type="button" onclick="stopDemo()">Stop demo stream</button>
                             <button class="btn btn-secondary" type="button" onclick="toggleBridge()">Toggle robot bridge</button>
+                            <button class="btn btn-secondary" type="button" onclick="firePreset()">Fire preset sequence</button>
                         </div>
                     </article>
 
@@ -479,7 +482,7 @@
         } | tojson }}
     </script>
 
-    <script src="{{ url_for('static', filename='js/app.js') }}?v=12"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v=13"></script>
     {% endif %}
 </body>
 </html>

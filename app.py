@@ -74,7 +74,7 @@ ROBOT_COMMANDS = {
 }
 
 # TCP socket configuration for Socat robot bridge
-ROBOT_TCP_HOST = os.getenv('ROBOT_TCP_HOST', '10.147.196.185')  # Odroid's hotspot IP
+ROBOT_TCP_HOST = os.getenv('ROBOT_TCP_HOST', '10.186.0.185')  # Odroid's hotspot IP
 ROBOT_TCP_PORT = int(os.getenv('ROBOT_TCP_PORT', '5000'))
 ROBOT_TCP_TIMEOUT = float(os.getenv('ROBOT_TCP_TIMEOUT', '2.0'))
 BAUD_RATE = 4800  # kept for status display only
@@ -124,12 +124,12 @@ def send_named_command(command_name, force=False):
     return False, 'Failed to send command: {}'.format(command_name)
 
 
-def _demo_robot_callback(command_name):
+def _demo_robot_callback(command_name, force=False):
     """Callback used by demo engine to dispatch stable predictions."""
-    print(f"[CALLBACK] called with {command_name}, DEMO_BRIDGE_SEND_REAL={DEMO_BRIDGE_SEND_REAL}")
+    print(f"[CALLBACK] called with {command_name}, DEMO_BRIDGE_SEND_REAL={DEMO_BRIDGE_SEND_REAL}, force={force}")
     if not DEMO_BRIDGE_SEND_REAL:
         return True
-    success, msg = send_named_command(command_name, force=False)
+    success, msg = send_named_command(command_name, force=force)
     print(f"[CALLBACK] send result: {success}, {msg}")
     return success
 

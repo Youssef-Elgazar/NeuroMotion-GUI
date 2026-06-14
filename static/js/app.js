@@ -398,6 +398,16 @@ async function toggleBridge() {
     await refreshOverview();
 }
 
+async function firePreset() {
+    const url = boot.urls.demoFirePresetUrl || '/api/demo/fire_preset';
+    const response = await apiFetch(url, { method: 'POST', body: '{}' });
+    const payload = await response.json();
+    const note = document.getElementById('sidebar-session-message') || document.getElementById('stream-note');
+    if (note) {
+        note.textContent = payload.message || 'Preset sequence triggered.';
+    }
+}
+
 /* ── Collapsible Metrics Toggle ────────────────────────────── */
 window.toggleOverviewMetrics = function() {
     const cardGrid = document.querySelector('.card-grid');
@@ -429,6 +439,39 @@ let _eyeRunning      = false;
 let _eyeSmoothedYaw  = 0;
 let _eyeSmoothedPitch = 0;
 let _eyeLastData     = null;    // latest JSON payload from server
+let _lastEyePostTime = 0;
+const EYE_POST_INTERVAL_MS = 2000;
+
+async function _sendEyeCommandToBackend(direction, confidencePercent) {
+    const now = Date.now();
+    if (direction === 'CENTER') return;
+
+    if (direction !== 'DOWN' && (now - _lastEyePostTime < EYE_POST_INTERVAL_MS)) {
+        return;
+    }
+
+    if (direction !== 'DOWN') {
+        _lastEyePostTime = now;
+    }
+
+    try {
+        const response = await apiFetch('/api/eye/command', {
+            method: 'POST',
+            body: JSON.stringify({
+                direction: direction,
+                confidence: confidencePercent / 100
+            })
+        });
+        const payload = await response.json();
+        if (payload.success && payload.show_back_illustration) {
+            _updateRobotViewer('BACKWARD', _eyeRunning);
+        } else if (payload.success && payload.command) {
+            _updateRobotViewer(payload.command, _eyeRunning);
+        }
+    } catch (err) {
+        console.error("Failed to send eye command to backend:", err);
+    }
+}
 
 // DOM references cached on first use
 function _eyeEl(id) { return document.getElementById(id); }
@@ -503,6 +546,10 @@ function _updateEyeUI(data) {
 
     // Sync robot viewer on eye command
     _updateRobotViewer(dir, _eyeRunning);
+
+    if (_eyeRunning && dir !== 'CENTER') {
+        _sendEyeCommandToBackend(dir, conf);
+    }
 }
 
 /* Render loop: draws mirrored webcam video onto canvas. */

@@ -344,17 +344,29 @@ class EEGDemoEngine(object):
             self._attempt_dispatch()
 
     def _execute_fire_once_preset(self):
-        """Execute the fire-once preset sequence: FWD_SHORT_STEP -> BOW -> IDLE.
+        """Execute the fire-once preset sequence: FWD_SHORT_STEP -> (interrupt) ATTENTION_1 -> BOW -> ATTENTION_1.
         Runs each step sequentially in a background thread so the tick loop isn't blocked.
         """
         self._fire_once_preset_pending = False
 
         def _run():
-            sequence = ['FWD_SHORT_STEP', 'BOW', 'ATTENTION_1']
-            for cmd in sequence:
-                if self.send_robot_command_callback and self.robot_bridge_enabled:
-                    self.send_robot_command_callback(cmd)
-                time.sleep(3.0)
+            if not (self.send_robot_command_callback and self.robot_bridge_enabled):
+                return
+            
+            # 1. Start FWD_SHORT_STEP
+            self.send_robot_command_callback('FWD_SHORT_STEP', force=True)
+            time.sleep(1.8)
+            
+            # 2. Interrupt FWD_SHORT_STEP with ATTENTION_1
+            self.send_robot_command_callback('ATTENTION_1', force=True)
+            time.sleep(1.8)
+            
+            # 3. Perform BOW
+            self.send_robot_command_callback('BOW', force=True)
+            time.sleep(1.8)
+            
+            # 4. Return to ATTENTION_1 stance
+            self.send_robot_command_callback('ATTENTION_1', force=True)
 
         t = threading.Thread(target=_run, daemon=True)
         t.start()

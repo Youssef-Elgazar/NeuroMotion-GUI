@@ -4,8 +4,10 @@ import json
 import math
 import numpy as np
 import torch
+import asyncio
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.concurrency import run_in_threadpool
 from l2cs import Pipeline
 
 app = FastAPI(title="L2CS-Net Gaze Estimation Backend")
@@ -20,8 +22,10 @@ app.add_middleware(
 )
 
 # Configuration from environment variables with defaults
-THRESHOLD_YAW = float(os.getenv("THRESHOLD_YAW", "15.0"))
-THRESHOLD_PITCH = float(os.getenv("THRESHOLD_PITCH", "10.0"))
+THRESHOLD_YAW = float(os.getenv("THRESHOLD_YAW", "18.0"))
+THRESHOLD_PITCH = float(os.getenv("THRESHOLD_PITCH", "12.0"))
+OFFSET_YAW = float(os.getenv("OFFSET_YAW", "0.0"))
+OFFSET_PITCH = float(os.getenv("OFFSET_PITCH", "0.0"))
 MODEL_PATH = os.getenv("MODEL_PATH", "models/L2CSNet_gaze360.pkl")
 DEVICE = os.getenv("DEVICE", "cuda" if torch.cuda.is_available() else "cpu")
 
@@ -61,23 +65,16 @@ def health_check():
 
 def classify_direction(yaw_deg: float, pitch_deg: float) -> str:
     """Classifies yaw and pitch degrees into gaze directions."""
-    magnitude_yaw = abs(yaw_deg)
-    magnitude_pitch = abs(pitch_deg)
-
-    if magnitude_yaw > magnitude_pitch:
-        if yaw_deg < -THRESHOLD_YAW:
-            return "LEFT"
-        elif yaw_deg > THRESHOLD_YAW:
-            return "RIGHT"
-        else:
-            return "CENTER"
+    if yaw_deg < -THRESHOLD_YAW:
+        return "LEFT"
+    elif yaw_deg > THRESHOLD_YAW:
+        return "RIGHT"
+    elif pitch_deg < -THRESHOLD_PITCH:
+        return "UP"
+    elif pitch_deg > THRESHOLD_PITCH:
+        return "DOWN"
     else:
-        if pitch_deg > THRESHOLD_PITCH:
-            return "UP"
-        elif pitch_deg < -THRESHOLD_PITCH:
-            return "DOWN"
-        else:
-            return "CENTER"
+        return "CENTER"
 
 def calculate_confidence(direction: str, yaw_deg: float, pitch_deg: float) -> int:
     """Calculates confidence percentage based on how far into the target zone the gaze is."""
@@ -123,10 +120,33 @@ async def websocket_endpoint(websocket: WebSocket):
         await websocket.close()
         return
 
+    latest_data = None
+    new_frame_event = asyncio.Event()
+    running = True
+
+    async def receive_frames():
+        nonlocal latest_data, running
+        try:
+            while running:
+                data = await websocket.receive_bytes()
+                latest_data = data
+                new_frame_event.set()
+        except WebSocketDisconnect:
+            running = False
+        except Exception as e:
+            print(f"Receive error: {e}")
+            running = False
+
+    receiver_task = asyncio.create_task(receive_frames())
+
     try:
-        while True:
-            # Receive binary frame from frontend
-            data = await websocket.receive_bytes()
+        while running:
+            await new_frame_event.wait()
+            if not running:
+                break
+            
+            data = latest_data
+            new_frame_event.clear()
             
             # Decode JPEG frame
             nparr = np.frombuffer(data, np.uint8)
@@ -145,7 +165,8 @@ async def websocket_endpoint(websocket: WebSocket):
             
             # Run gaze estimation step
             try:
-                results = gaze_pipeline.step(frame)
+                # Offload to threadpool to avoid blocking asyncio event loop
+                results = await run_in_threadpool(gaze_pipeline.step, frame)
             except Exception as e:
                 print(f"Error during model inference: {e}")
                 await websocket.send_json({
@@ -161,12 +182,15 @@ async def websocket_endpoint(websocket: WebSocket):
             # Process outputs if face is detected
             if results.bboxes is not None and len(results.bboxes) > 0:
                 # Extract gaze angles for the first detected face (in radians)
-                yaw_rad = results.yaw[0]
-                pitch_rad = results.pitch[0]
+                # The camera appears to be rotated 90 degrees. We swap and invert axes:
+                # Actual Yaw = Camera Pitch
+                # Actual Pitch = -Camera Yaw
+                raw_yaw_rad = results.pitch[0]
+                raw_pitch_rad = -results.yaw[0]
                 
-                # Convert to degrees
-                yaw_deg = float(np.rad2deg(yaw_rad))
-                pitch_deg = float(np.rad2deg(pitch_rad))
+                # Convert to degrees and apply calibration offsets
+                yaw_deg = float(np.rad2deg(raw_yaw_rad)) - OFFSET_YAW
+                pitch_deg = float(np.rad2deg(raw_pitch_rad)) - OFFSET_PITCH
                 
                 # Extract bounding box [x1, y1, x2, y2]
                 bbox = [int(v) for v in results.bboxes[0]]
@@ -201,6 +225,10 @@ async def websocket_endpoint(websocket: WebSocket):
         print("WebSocket connection disconnected.")
     except Exception as e:
         print(f"WebSocket error: {e}")
+    finally:
+        running = False
+        if not receiver_task.done():
+            receiver_task.cancel()
 
 # Static file serving is handled by the Flask app on port 5000.
 # This FastAPI server only exposes the /ws/gaze WebSocket endpoint.

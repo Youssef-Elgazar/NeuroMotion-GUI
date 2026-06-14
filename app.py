@@ -124,12 +124,12 @@ def send_named_command(command_name, force=False):
     return False, 'Failed to send command: {}'.format(command_name)
 
 
-def _demo_robot_callback(command_name, force=False):
+def _demo_robot_callback(command_name):
     """Callback used by demo engine to dispatch stable predictions."""
-    print(f"[CALLBACK] called with {command_name}, DEMO_BRIDGE_SEND_REAL={DEMO_BRIDGE_SEND_REAL}, force={force}")
+    print(f"[CALLBACK] called with {command_name}, DEMO_BRIDGE_SEND_REAL={DEMO_BRIDGE_SEND_REAL}")
     if not DEMO_BRIDGE_SEND_REAL:
         return True
-    success, msg = send_named_command(command_name, force=force)
+    success, msg = send_named_command(command_name, force=False)
     print(f"[CALLBACK] send result: {success}, {msg}")
     return success
 

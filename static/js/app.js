@@ -186,7 +186,7 @@ function _resolveView(cmd) {
     // Keyword heuristics
     if (cmd.includes('LEFT'))  return 'left';
     if (cmd.includes('RIGHT')) return 'right';
-    if (cmd.includes('BACK'))  return 'back';
+    if (cmd.includes('BACK') || cmd.includes('DOWN'))  return 'back';
     return 'front';
 }
 
@@ -398,13 +398,59 @@ async function toggleBridge() {
     await refreshOverview();
 }
 
+let _cooldownTimer = null;
+let _cooldownEndTime = 0;
+
+function isCooldownActive() {
+    return Date.now() < _cooldownEndTime;
+}
+
+function showCooldown(durationSeconds) {
+    let badge = document.getElementById('cooldown-badge');
+    if (!badge) {
+        badge = document.createElement('div');
+        badge.id = 'cooldown-badge';
+        badge.className = 'cooldown-floating-badge';
+        badge.innerHTML = '<div class="cooldown-spinner"></div><span id="cooldown-text"></span>';
+        document.body.appendChild(badge);
+    }
+    
+    _cooldownEndTime = Date.now() + (durationSeconds * 1000);
+    badge.classList.add('visible');
+    
+    if (_cooldownTimer) {
+        clearInterval(_cooldownTimer);
+    }
+    
+    const updateText = () => {
+        const remaining = Math.max(0, (_cooldownEndTime - Date.now()) / 1000);
+        const textNode = document.getElementById('cooldown-text');
+        if (textNode) {
+            textNode.textContent = `Robot Cooldown: ${remaining.toFixed(1)}s`;
+        }
+        if (remaining <= 0) {
+            badge.classList.remove('visible');
+            clearInterval(_cooldownTimer);
+            _cooldownTimer = null;
+        }
+    };
+    
+    updateText();
+    _cooldownTimer = setInterval(updateText, 100);
+}
+
 async function firePreset() {
+    if (isCooldownActive()) return;
+
     const url = boot.urls.demoFirePresetUrl || '/api/demo/fire_preset';
     const response = await apiFetch(url, { method: 'POST', body: '{}' });
     const payload = await response.json();
     const note = document.getElementById('sidebar-session-message') || document.getElementById('stream-note');
     if (note) {
         note.textContent = payload.message || 'Preset sequence triggered.';
+    }
+    if (payload.success) {
+        showCooldown(5.4); // 3 steps * 1.8s delay
     }
 }
 
@@ -443,13 +489,12 @@ let _lastEyePostTime = 0;
 const EYE_POST_INTERVAL_MS = 2000;
 
 async function _sendEyeCommandToBackend(direction, confidencePercent) {
-    const now = Date.now();
+    if (direction === 'CENTER') return;
 
-    if (now - _lastEyePostTime < EYE_POST_INTERVAL_MS) {
-        return;
+    // DOWN command is for view toggling only (not moving robot), bypass cooldown check
+    if (direction !== 'DOWN') {
+        if (isCooldownActive()) return;
     }
-
-    _lastEyePostTime = now;
 
     try {
         const response = await apiFetch('/api/eye/command', {
@@ -460,10 +505,14 @@ async function _sendEyeCommandToBackend(direction, confidencePercent) {
             })
         });
         const payload = await response.json();
-        if (payload.success && payload.show_back_illustration) {
-            _updateRobotViewer('BACKWARD', _eyeRunning);
-        } else if (payload.success && payload.command) {
-            _updateRobotViewer(payload.command, _eyeRunning);
+        if (payload.success) {
+            if (payload.show_back_illustration) {
+                _updateRobotViewer('BACKWARD', _eyeRunning);
+            } else if (payload.command) {
+                // Trigger cooldown for successfully dispatched movement command
+                showCooldown(2.0);
+                _updateRobotViewer(payload.command, _eyeRunning);
+            }
         }
     } catch (err) {
         console.error("Failed to send eye command to backend:", err);

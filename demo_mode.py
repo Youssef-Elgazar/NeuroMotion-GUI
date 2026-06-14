@@ -138,11 +138,10 @@ class EEGDemoEngine(object):
         """
         EYE_MAP = {
             'UP':    'FWD_SHORT_STEP',
-            'DOWN':  'BWD_SHORT_STEP',
+            'DOWN':  None,            # show back illustration, no movement
             'LEFT':  'GO_LEFT',
             'RIGHT': 'GO_RIGHT',
             'BACK':  'BWD_SHORT_STEP',
-            'CENTER': 'ATTENTION_1',
         }
 
         with self._lock:
@@ -175,14 +174,6 @@ class EEGDemoEngine(object):
             if self.robot_bridge_enabled and self.send_robot_command_callback:
                 sent = self.send_robot_command_callback(command)
                 self.eye_last_dispatch_time = now
-                
-                # If it's an active movement command, automatically schedule an IDLE reset 1.5s later
-                if command and command != 'ATTENTION_1':
-                    def _reset_stance():
-                        time.sleep(1.5)
-                        self.send_robot_command_callback('ATTENTION_1', force=True)
-                    threading.Thread(target=_reset_stance, daemon=True).start()
-                    
                 return {"success": sent, "show_back_illustration": False, "command": command}
 
             return {"success": False, "show_back_illustration": False, "message": "Robot bridge disabled"}
@@ -353,29 +344,17 @@ class EEGDemoEngine(object):
             self._attempt_dispatch()
 
     def _execute_fire_once_preset(self):
-        """Execute the fire-once preset sequence: FWD_SHORT_STEP -> (interrupt) ATTENTION_1 -> BOW -> ATTENTION_1.
+        """Execute the fire-once preset sequence: FWD_SHORT_STEP -> BOW -> IDLE.
         Runs each step sequentially in a background thread so the tick loop isn't blocked.
         """
         self._fire_once_preset_pending = False
 
         def _run():
-            if not (self.send_robot_command_callback and self.robot_bridge_enabled):
-                return
-            
-            # 1. Start FWD_SHORT_STEP
-            self.send_robot_command_callback('FWD_SHORT_STEP', force=True)
-            time.sleep(1.8)
-            
-            # 2. Interrupt FWD_SHORT_STEP with ATTENTION_1
-            self.send_robot_command_callback('ATTENTION_1', force=True)
-            time.sleep(1.8)
-            
-            # 3. Perform BOW
-            self.send_robot_command_callback('BOW', force=True)
-            time.sleep(1.8)
-            
-            # 4. Return to ATTENTION_1 stance
-            self.send_robot_command_callback('ATTENTION_1', force=True)
+            sequence = ['FWD_SHORT_STEP', 'BOW', 'ATTENTION_1']
+            for cmd in sequence:
+                if self.send_robot_command_callback and self.robot_bridge_enabled:
+                    self.send_robot_command_callback(cmd)
+                time.sleep(3.0)
 
         t = threading.Thread(target=_run, daemon=True)
         t.start()

@@ -89,6 +89,14 @@ serial_setup_done = False
 DEMO_BRIDGE_SEND_REAL = os.getenv('DEMO_BRIDGE_SEND_REAL', '1') == '1'  # default True since we hardcoded it working
 _tcp_connected = False
 
+# Auto-idle: bring the robot back to its neutral "Attention" stance shortly
+# after any command is dispatched, since FWD/BWD (and other) commands
+# otherwise leave the robot mid-action indefinitely. Matches the cooldown the
+# frontend already assumes (showCooldown(ROBOT_BUSY_SEC * 2)).
+ROBOT_IDLE_DELAY_SEC = ROBOT_BUSY_SEC
+ROBOT_IDLE_COMMAND_CODE = ROBOT_COMMANDS['ATTENTION_1']
+_idle_timer = None
+
 # [SERIAL] Previous direct serial configuration:
 # DEFAULT_PORT_CANDIDATES = (
 #     ['COM3', 'COM4'] if os.name == 'nt'
@@ -266,7 +274,7 @@ def init_serial():
 def send_command(command_code):
     """Send command byte to robot via Socat TCP bridge."""
     print(f"[TCP] Sending {command_code} to {ROBOT_TCP_HOST}:{ROBOT_TCP_PORT}")
-    global last_error_message, last_command, last_send_time, busy_until, _tcp_connected
+    global last_error_message, last_command, last_send_time, busy_until, _tcp_connected, _idle_timer
     with tcp_lock:
         try:
             s = socket.create_connection((ROBOT_TCP_HOST, ROBOT_TCP_PORT), timeout=ROBOT_TCP_TIMEOUT)
@@ -278,6 +286,22 @@ def send_command(command_code):
             busy_until = last_send_time + ROBOT_BUSY_SEC
             last_error_message = None
             _tcp_connected = True
+
+            # Reset the auto-idle countdown: cancel any pending idle command
+            # from a previous dispatch, then (unless this command IS the idle
+            # command, which would otherwise retrigger itself forever)
+            # schedule ATTENTION_1 to be sent after ROBOT_IDLE_DELAY_SEC.
+            if _idle_timer is not None:
+                _idle_timer.cancel()
+            if command_code == ROBOT_IDLE_COMMAND_CODE:
+                _idle_timer = None
+            else:
+                _idle_timer = threading.Timer(
+                    ROBOT_IDLE_DELAY_SEC, send_named_command, args=('ATTENTION_1',), kwargs={'force': True}
+                )
+                _idle_timer.daemon = True
+                _idle_timer.start()
+
             return True
         except Exception as e:
             print("TCP send error: {}".format(e))

@@ -20,7 +20,7 @@ class EEGDemoEngine(object):
         
         self.packet_interval_sec = float(os.getenv("DEMO_PACKET_INTERVAL_SEC", "3.0")) # Slowed down to 3s per epoch to simulate thought
         self.confidence_threshold = float(os.getenv("DEMO_CONFIDENCE_THRESHOLD", "0.60"))
-        self.required_streak = int(os.getenv("DEMO_STREAK_REQUIRED", "2"))
+        self.required_streak = int(os.getenv("DEMO_STREAK_REQUIRED", "1"))
         self.preset_delay_sec = float(os.getenv("DEMO_PRESET_DELAY_SEC", str(self.packet_interval_sec)))
         
         self.vault = SecureSessionVault()
@@ -51,7 +51,7 @@ class EEGDemoEngine(object):
         
         self.base_dir = os.getenv(
             "DEMO_BASE_DIR",
-            r"C:\Users\YoussefB\Downloads\Graduation Project PreProcessing layer"
+            os.path.dirname(os.path.abspath(__file__))
         )
         self.data_dir = os.path.join(self.base_dir, "Hack_Processed_Data", "AI_Ready_Numpy")
         self.models_dir = os.path.join(self.base_dir, "Trained_Models")

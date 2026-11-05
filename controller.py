@@ -2,6 +2,36 @@ import os
 import numpy as np
 import joblib
 
+# Channel order matches EEGDemoEngine.channels / Translated_Robot_Data.csv columns
+CHANNELS = ["AF3", "F7", "F3", "FC5", "T7", "P7", "O1", "O2", "P8", "T8", "FC6", "F4", "F8", "AF4"]
+
+# Index pairs for matching left/right hemisphere electrodes (AF3<->AF4, F7<->F8, ...)
+_LEFT_HEMISPHERE_IDX = [0, 1, 2, 3, 4, 5, 6]
+_RIGHT_HEMISPHERE_IDX = [13, 12, 11, 10, 9, 8, 7]
+
+
+def extract_lr_diff_meanvar_features(X):
+    """X: (n, 14, samples) -> (n, 14) left-minus-right hemisphere mean/variance differences.
+
+    Used by the "Horizontal" model, which specializes in LEFT/RIGHT discrimination.
+    """
+    X = np.asarray(X)
+    mean, var = X.mean(axis=2), X.var(axis=2)
+    return np.concatenate([
+        mean[:, _LEFT_HEMISPHERE_IDX] - mean[:, _RIGHT_HEMISPHERE_IDX],
+        var[:, _LEFT_HEMISPHERE_IDX] - var[:, _RIGHT_HEMISPHERE_IDX],
+    ], axis=1)
+
+
+def extract_channel_meanvar_features(X):
+    """X: (n, 14, samples) -> (n, 28) per-channel mean and variance.
+
+    Used by the "Vertical" model, which specializes in FORWARD/BACKWARD discrimination.
+    """
+    X = np.asarray(X)
+    return np.concatenate([X.mean(axis=2), X.var(axis=2)], axis=1)
+
+
 class NeuroMotionFinalController:
     def __init__(self, models_dir, subject_id, threshold=0.60):
         self.threshold = threshold
